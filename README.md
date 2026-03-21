@@ -5,8 +5,8 @@ This project includes a backend (Node.js + Express + MongoDB) and a frontend.
 Project Structure
 
 cs308/
-├── cs308-backend/
-├── cs308-frontend/
+- ├── cs308-backend/
+- ├── cs308-frontend/
 
 # Backend Setup
 
