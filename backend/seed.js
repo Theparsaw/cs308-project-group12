@@ -1,4 +1,4 @@
-require('dotenv').config({ path: './backend/.env' });
+require('dotenv').config({ path: __dirname + '/.env' });
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const Category = require('./models/category');
