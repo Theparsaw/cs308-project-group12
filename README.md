@@ -32,9 +32,9 @@ Notes:
 See API.md for endpoint details.
 
 
-### Frontend Features
+# Frontend Features
 
-# Product Browsing (SCRUM-64)
+ Product Browsing (SCRUM-64)
 - Initialized Vue.js frontend using Vite
 - Configured Tailwind CSS for styling
 - Implemented routing with Vue Router
@@ -44,7 +44,7 @@ See API.md for endpoint details.
 - Implemented loading and error states
 - Added navigation between pages
 
-# Admin Panel (SCRUM-74)
+ Admin Panel (SCRUM-74)
 - Created admin product list page (table view)
 - Implemented Add Product form with validation
 - Implemented Edit Product functionality with pre-filled data
