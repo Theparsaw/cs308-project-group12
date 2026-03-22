@@ -32,24 +32,33 @@ Notes:
 See API.md for endpoint details.
 
 
-# Frontend Features
+## Frontend Description
 
- Product Browsing (SCRUM-64)
-- Initialized Vue.js frontend using Vite
-- Configured Tailwind CSS for styling
-- Implemented routing with Vue Router
-- Created product listing page (responsive grid layout)
-- Created product detail page with dynamic routing
-- Connected frontend to backend API (/api/products)
-- Implemented loading and error states
-- Added navigation between pages
+This project is a full-stack web application where users can browse through a list of products and view detailed information for each product. The application includes a product browsing interface as well as an admin panel where products can be added, edited, and deleted.
 
- Admin Panel (SCRUM-74)
-- Created admin product list page (table view)
-- Implemented Add Product form with validation
-- Implemented Edit Product functionality with pre-filled data
-- Added Delete product functionality
-- Connected admin UI to backend API
-- Added form validation for all required fields
-- Implemented category selection dropdown
-- Disabled productId editing in update mode
+The frontend is built using Vue.js (Vite) and styled with Tailwind CSS.
+
+---
+
+## Running the Application
+
+You must run BOTH backend and frontend in separate terminals.
+
+### Terminal 1 — Backend
+
+cd cs308-backend  
+node server.js  
+
+→ Server runs on http://localhost:5001  
+
+---
+
+### Terminal 2 — Frontend
+
+cd cs308-frontend  
+npm install  
+npm run dev  
+
+→ Open: http://localhost:5173  
+
+---
