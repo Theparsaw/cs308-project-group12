@@ -62,3 +62,5 @@ npm run dev
 → Open: http://localhost:5173  
 
 ---
+
+# The project is being tested for further developments, under certain (so far 15) cases.
