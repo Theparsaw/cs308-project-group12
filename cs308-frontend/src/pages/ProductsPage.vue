@@ -24,12 +24,26 @@
           Stock: {{ product.quantityInStock }}
         </p>
 
-        <router-link
-          :to="`/products/${product.productId}`"
-          class="inline-block mt-4 text-blue-600 hover:underline"
-        >
-          View Details →
-        </router-link>
+        <p v-if="messages[product.productId]" class="mt-3 text-sm" :class="messageClasses[product.productId]">
+          {{ messages[product.productId] }}
+        </p>
+
+        <div class="mt-4 flex items-center gap-4">
+          <router-link
+            :to="`/products/${product.productId}`"
+            class="inline-block text-blue-600 hover:underline"
+          >
+            View Details →
+          </router-link>
+
+          <button
+            class="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            :disabled="pendingProductId === product.productId"
+            @click="handleAddToCart(product.productId)"
+          >
+            Add to Cart
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -37,11 +51,45 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { addItemToCart } from '../api/cartApi'
 import { getProducts } from '../api/productApi'
 
 const products = ref([])
 const loading = ref(true)
 const error = ref('')
+const pendingProductId = ref('')
+const messages = ref({})
+const messageClasses = ref({})
+
+const setProductMessage = (productId, message, tone) => {
+  messages.value = {
+    ...messages.value,
+    [productId]: message,
+  }
+  messageClasses.value = {
+    ...messageClasses.value,
+    [productId]: tone === 'error' ? 'text-red-600' : 'text-green-600',
+  }
+}
+
+const handleAddToCart = async (productId) => {
+  pendingProductId.value = productId
+  setProductMessage(productId, '', 'success')
+
+  try {
+    await addItemToCart(productId, 1)
+    setProductMessage(productId, 'Added to cart', 'success')
+  } catch (err) {
+    setProductMessage(
+      productId,
+      err?.response?.data?.message || 'Failed to add to cart',
+      'error'
+    )
+    console.error(err)
+  } finally {
+    pendingProductId.value = ''
+  }
+}
 
 onMounted(async () => {
   try {
