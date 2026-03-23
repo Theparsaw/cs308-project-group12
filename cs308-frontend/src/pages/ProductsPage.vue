@@ -44,7 +44,11 @@
           :key="product.productId"
           class="border rounded-lg p-4 shadow hover:shadow-lg transition"
         >
-          <h2 class="text-xl font-semibold">{{ product.name }}</h2>
+          <div class="flex items-baseline gap-3 mb-1">
+            <h2 class="text-xl font-semibold text-gray-900">{{ product.name }}</h2>
+            <span class="text-sm font-mono font-medium text-gray-500">{{ product.model }}</span>
+          </div>
+
           <p class="mt-2 text-gray-600">{{ product.description }}</p>
 
           <p class="mt-3 font-semibold text-green-600">
@@ -78,7 +82,7 @@ const selectedCategoryId = ref(null)
 
 const uniqueCategories = computed(() => {
   const categories = new Set(products.value.map(p => p.categoryId))
-  return Array.from(categories).filter(Boolean) 
+  return Array.from(categories).filter(Boolean)
 })
 
 const filteredProducts = computed(() => {
