@@ -55,6 +55,23 @@
         <strong>Last Updated:</strong>
         {{ new Date(product.updatedAt).toLocaleString() }}
       </p>
+
+      <p v-if="cartMessage" class="mt-4 text-sm" :class="cartMessageTone === 'error' ? 'text-red-600' : 'text-green-600'">
+        {{ cartMessage }}
+      </p>
+
+      <div class="mt-4 flex gap-3">
+        <button
+          class="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+          :disabled="addingToCart"
+          @click="handleAddToCart"
+        >
+          Add to Cart
+        </button>
+        <router-link to="/cart" class="rounded-md border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50">
+          Go to Cart
+        </router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -62,6 +79,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { addItemToCart } from '../api/cartApi'
 import { getProductById } from '../api/productApi'
 
 const route = useRoute()
@@ -70,10 +88,30 @@ const router = useRouter()
 const product = ref({})
 const loading = ref(true)
 const error = ref('')
+const addingToCart = ref(false)
+const cartMessage = ref('')
+const cartMessageTone = ref('success')
 
 const goBack = () => {
   router.push('/products')
   // or use: router.back()
+}
+
+const handleAddToCart = async () => {
+  addingToCart.value = true
+  cartMessage.value = ''
+
+  try {
+    await addItemToCart(product.value.productId, 1)
+    cartMessage.value = 'Added to cart'
+    cartMessageTone.value = 'success'
+  } catch (err) {
+    cartMessage.value = err?.response?.data?.message || 'Failed to add to cart'
+    cartMessageTone.value = 'error'
+    console.error(err)
+  } finally {
+    addingToCart.value = false
+  }
 }
 
 onMounted(async () => {
