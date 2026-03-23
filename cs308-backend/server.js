@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const productRoutes = require("./routes/productRoutes");
+const cartRoutes = require("./routes/cartRoutes");
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
 
 const PORT = process.env.PORT || 5001;
 
