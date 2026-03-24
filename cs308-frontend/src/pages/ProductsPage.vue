@@ -126,11 +126,11 @@
           <p class="mt-2 text-gray-600">{{ product.description }}</p>
 
           <p class="mt-3 font-semibold text-green-600">
-            ${{ product.price.toLocaleString() }}
+            ${{ product.price.toLocaleString() ?? 'N/A' }}
           </p>
 
           <p class="text-sm text-gray-500">
-            Stock: {{ product.quantityInStock }}
+            Stock: {{ product.quantityInStock ?? 'N/A' }}
           </p>
 
           <router-link
@@ -183,7 +183,7 @@ function clearSelection() {
 onMounted(async () => {
   try {
     const res = await getProducts()
-    products.value = res.data
+    products.value = res.data ?? []
   } catch (err) {
     error.value = 'Failed to load products'
     console.error(err)
