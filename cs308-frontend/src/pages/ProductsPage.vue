@@ -86,7 +86,7 @@ const uniqueCategories = computed(() => {
 })
 
 const filteredProducts = computed(() => {
-  if (!selectedCategoryId.value) return products.value
+  if (selectedCategoryId.value === null || selectedCategoryId.value === undefined) return products.value
   return products.value.filter(p => p.categoryId === selectedCategoryId.value)
 })
 
