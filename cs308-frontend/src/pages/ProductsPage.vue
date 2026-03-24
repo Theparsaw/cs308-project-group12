@@ -157,7 +157,7 @@ const dropdownOpen = ref(false)
 
 const uniqueCategories = computed(() => {
   const categories = new Set(products.value.map(p => p.categoryId))
-  return Array.from(categories).filter(Boolean)
+  return Array.from(categories).filter(c => c !== null && c !== undefined)
 })
 
 const filteredProducts = computed(() => {
