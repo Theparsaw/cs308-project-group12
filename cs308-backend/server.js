@@ -4,6 +4,8 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const productRoutes = require("./routes/productRoutes");
 const cartRoutes = require("./routes/cartRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const moderationRoutes = require("./routes/moderationRoutes");
 
 dotenv.config();
 
@@ -20,6 +22,8 @@ app.get("/", (req, res) => {
 
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/moderation", moderationRoutes);
 
 const PORT = process.env.PORT || 5001;
 
