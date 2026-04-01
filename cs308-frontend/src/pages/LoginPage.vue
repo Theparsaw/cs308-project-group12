@@ -1,0 +1,103 @@
+<template>
+  <div class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+
+      <h1 class="text-2xl font-bold mb-6 text-center">Login</h1>
+
+      <!-- Show error message if login fails -->
+      <p v-if="error" class="text-red-500 text-sm mb-4 text-center">{{ error }}</p>
+
+      <form @submit.prevent="handleLogin">
+
+        <!-- Email field -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input
+            v-model="email"
+            type="email"
+            placeholder="Enter your email"
+            class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+
+        <!-- Password field -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input
+            v-model="password"
+            type="password"
+            placeholder="Enter your password"
+            class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+
+        <!-- Submit button -->
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {{ loading ? 'Logging in...' : 'Login' }}
+        </button>
+
+      </form>
+
+      <!-- Link to register page -->
+      <p class="mt-4 text-center text-sm text-gray-600">
+        Don't have an account?
+        <router-link to="/register" class="text-blue-600 hover:underline">Register</router-link>
+      </p>
+
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { loginUser } from '../api/authApi'
+import { authStore } from '../store/auth'
+
+// Router lets us redirect the user after login
+const router = useRouter()
+
+// Form fields — v-model connects these to the input fields above
+const email = ref('')
+const password = ref('')
+
+// State for loading spinner and error message
+const loading = ref(false)
+const error = ref('')
+
+const handleLogin = async () => {
+  // Clear any previous error
+  error.value = ''
+  loading.value = true
+
+  try {
+    // Send email and password to the backend
+    const res = await loginUser({ email: email.value, password: password.value })
+
+    // Save the token and user info in the auth store
+    authStore.setAuth(res.data.token, res.data.user)
+
+    // Redirect based on role
+    if (res.data.user.role === 'sales_manager') {
+      router.push('/admin/products')
+    } else if (res.data.user.role === 'product_manager') {
+      router.push('/admin/products')
+    } else {
+      // Regular customers go to the home page
+      router.push('/')
+    }
+
+  } catch (err) {
+    // Show the error message from the backend
+    error.value = err.response?.data?.message || 'Login failed. Please try again.'
+  } finally {
+    loading.value = false
+  }
+}
+</script>
