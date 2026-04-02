@@ -1,5 +1,7 @@
 const Product = require("../models/Product");
 const Review = require("../models/Review");
+const User = require("../models/User");
+const mongoose = require("mongoose");
 
 const isValidRating = (rating) => {
   if (rating === undefined || rating === null) return false;
@@ -11,58 +13,153 @@ const isValidRating = (rating) => {
   return ratingNumber >= 1 && ratingNumber <= 5;
 };
 
-// POST /api/reviews
-// Expected body:
-// { userId: string, productId: string, rating: 1-5 (int), comment?: string }
-const createReview = async (req, res) => {
-  try {
-    const { userId, productId, rating, comment } = req.body;
+const normalizeComment = (comment) => String(comment ?? "").trim();
 
-    if (!userId) {
-      return res.status(400).json({ message: "userId is required" });
+const validateReviewInput = ({ productId, rating, comment }) => {
+  const errors = {};
+  const normalizedComment = normalizeComment(comment);
+
+  if (!productId || !String(productId).trim()) {
+    errors.productId = "productId is required";
+  }
+
+  if (!isValidRating(rating)) {
+    errors.rating = "rating must be an integer between 1 and 5";
+  }
+
+  if (!normalizedComment) {
+    errors.comment = "comment is required";
+  } else {
+    if (normalizedComment.length < 10) {
+      errors.comment = "comment must be at least 10 characters long";
+    } else if (normalizedComment.length > 500) {
+      errors.comment = "comment must be 500 characters or less";
+    } else if (/https?:\/\/|www\./i.test(normalizedComment)) {
+      errors.comment = "comment contains disallowed promotional content";
+    } else if (/(.)\1{7,}/i.test(normalizedComment)) {
+      errors.comment = "comment looks like spam";
     }
+  }
 
-    if (!productId) {
+  return {
+    errors,
+    normalizedComment,
+  };
+};
+
+const getApprovedReviewsForProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    if (!productId || !String(productId).trim()) {
       return res.status(400).json({ message: "productId is required" });
     }
 
-    if (!isValidRating(rating)) {
+    const reviews = await Review.find({
+      productId: String(productId).trim(),
+      status: "approved",
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const userIds = reviews
+      .map((review) => review.userId)
+      .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } }).select("name").lean()
+      : [];
+
+    const namesById = users.reduce((acc, user) => {
+      acc[String(user._id)] = user.name;
+      return acc;
+    }, {});
+
+    const data = reviews.map((review) => ({
+      _id: review._id,
+      productId: review.productId,
+      userId: review.userId,
+      reviewerName: namesById[review.userId] || "Anonymous User",
+      rating: review.rating,
+      comment: review.comment,
+      status: review.status,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+    }));
+
+    return res.status(200).json({
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch reviews",
+      error: error.message,
+    });
+  }
+};
+
+// POST /api/reviews
+// Expected body:
+// { productId: string, rating: 1-5 (int), comment: string }
+const createReview = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { productId, rating, comment } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const { errors, normalizedComment } = validateReviewInput({
+      productId,
+      rating,
+      comment,
+    });
+
+    if (Object.keys(errors).length > 0) {
       return res.status(400).json({
-        message: "rating must be an integer between 1 and 5",
+        message: "Validation failed",
+        errors,
       });
     }
 
+    const trimmedProductId = String(productId).trim();
     const ratingNumber = Number(rating);
 
-    const product = await Product.findOne({ productId });
+    const product = await Product.findOne({ productId: trimmedProductId });
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const existingReview = await Review.findOne({ userId, productId });
+    const existingReview = await Review.findOne({ userId, productId: trimmedProductId });
     if (existingReview) {
       return res.status(400).json({
         message: "You have already submitted a review for this product",
+        errors: {
+          productId: "You have already submitted a review for this product",
+        },
       });
     }
 
     const review = await Review.create({
       userId,
-      productId,
+      productId: trimmedProductId,
       rating: ratingNumber,
-      comment: comment ?? "",
-      // status defaults to "pending"
+      comment: normalizedComment,
     });
 
     return res.status(201).json({
-      message: "Review created successfully",
+      message: "Review submitted successfully and is pending approval",
       review,
     });
   } catch (error) {
-    // In case two requests race past the findOne() check.
     if (error && error.code === 11000) {
       return res.status(400).json({
         message: "You have already submitted a review for this product",
+        errors: {
+          productId: "You have already submitted a review for this product",
+        },
       });
     }
 
@@ -74,6 +171,6 @@ const createReview = async (req, res) => {
 };
 
 module.exports = {
+  getApprovedReviewsForProduct,
   createReview,
 };
-

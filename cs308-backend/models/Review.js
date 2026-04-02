@@ -26,11 +26,12 @@ const reviewSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+      maxlength: 500,
     },
 
-    // Example workflow fields for moderation, etc.
     status: {
       type: String,
+      enum: ["pending", "approved", "rejected"],
       default: "pending",
       trim: true,
     },
@@ -44,4 +45,3 @@ const reviewSchema = new mongoose.Schema(
 reviewSchema.index({ userId: 1, productId: 1 }, { unique: true });
 
 module.exports = mongoose.model("Review", reviewSchema);
-
