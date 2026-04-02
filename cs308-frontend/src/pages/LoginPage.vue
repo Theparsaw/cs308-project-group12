@@ -95,7 +95,11 @@ const handleLogin = async () => {
 
   } catch (err) {
     // Show the error message from the backend
-    error.value = err.response?.data?.message || 'Login failed. Please try again.'
+    if (!err.response) {
+      error.value = 'Cannot reach the backend server. Make sure the backend is running on http://localhost:5001.'
+    } else {
+      error.value = err.response?.data?.message || 'Login failed. Please try again.'
+    }
   } finally {
     loading.value = false
   }
