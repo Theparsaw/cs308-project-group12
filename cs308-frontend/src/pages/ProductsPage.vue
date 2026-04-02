@@ -1,183 +1,470 @@
 <template>
-  <div class="p-6 flex flex-col md:flex-row gap-6">
-    <aside class="w-full md:w-64 shrink-0">
-      <h2 class="text-xl font-bold mb-4 border-b pb-2">Categories</h2>
-      <ul class="space-y-2">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Hero -->
+    <section class="bg-gradient-to-r from-orange-100 to-orange-50 rounded-3xl p-8 mb-8">
+      <div class="max-w-2xl">
+        <p class="text-sm font-semibold text-orange-600 mb-2">Welcome to CS308 Store</p>
+        <h1 class="text-4xl font-bold text-gray-900 mb-3">
+          Discover products in a cleaner storefront
+        </h1>
+        <p class="text-gray-600 mb-5">
+          Browse featured products, category-based selections, and a more modern shopping layout.
+        </p>
+      </div>
+    </section>
 
-        <!-- All Products — clears all selections -->
-        <li>
-          <button
-            @click="clearSelection"
-            :class="[
-              'w-full text-left px-3 py-2 rounded transition capitalize flex items-center gap-2',
-              selectedCategories.size === 0 ? 'bg-red-100 text-red-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'
-            ]"
-          >
-            <span
-              class="w-2 h-2 rounded-full shrink-0 transition-colors"
-              :class="selectedCategories.size === 0 ? 'bg-red-500' : 'bg-transparent'"
-            ></span>
-            All Products
-          </button>
-        </li>
-
-        <!-- Dropdown toggle -->
-        <li>
-          <button
-            @click="dropdownOpen = !dropdownOpen"
-            class="w-full text-left px-3 py-2 rounded transition flex items-center justify-between hover:bg-gray-100 text-gray-700"
-          >
-            <span class="flex items-center gap-2">
-              <span
-                class="w-2 h-2 rounded-full shrink-0 transition-colors"
-                :class="selectedCategories.size > 0 ? 'bg-red-500' : 'bg-transparent'"
-              ></span>
-              <span class="capitalize">
-                Filter by Category
-                <span v-if="selectedCategories.size > 0" class="ml-1 text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5">
-                  {{ selectedCategories.size }}
-                </span>
-              </span>
-            </span>
-            <!-- Chevron -->
-            <svg
-              class="w-4 h-4 text-gray-400 transition-transform duration-200"
-              :class="dropdownOpen ? 'rotate-180' : ''"
-              fill="none" stroke="currentColor" stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          <!-- Dropdown list -->
-          <ul
-            v-show="dropdownOpen"
-            class="mt-1 ml-2 border-l-2 border-red-100 pl-2 space-y-1"
-          >
-            <li v-for="categoryId in uniqueCategories" :key="categoryId">
-              <button
-                @click="toggleCategory(categoryId)"
-                :class="[
-                  'w-full text-left px-3 py-1.5 rounded transition capitalize flex items-center gap-2 text-sm',
-                  selectedCategories.has(categoryId) ? 'bg-red-100 text-red-700 font-semibold' : 'hover:bg-gray-100 text-gray-600'
-                ]"
-              >
-                <!-- Red tick -->
-                <svg
-                  class="w-3.5 h-3.5 shrink-0 transition-opacity"
-                  :class="selectedCategories.has(categoryId) ? 'text-red-500 opacity-100' : 'text-red-300 opacity-40'"
-                  fill="none" stroke="currentColor" stroke-width="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ categoryId }}
-              </button>
-            </li>
-          </ul>
-        </li>
-
-      </ul>
-    </aside>
-
-    <main class="flex-1">
-      <h1 class="text-3xl text-red-500 mb-6 capitalize">
-        <span v-if="selectedCategories.size === 0">All Products</span>
-        <span v-else-if="selectedCategories.size === 1">{{ [...selectedCategories][0] }}</span>
-        <span v-else>{{ selectedCategories.size }} Categories</span>
-      </h1>
-
-      <!-- Active filter chips -->
-      <div v-if="selectedCategories.size > 0" class="flex flex-wrap gap-2 mb-4">
-        <span
-          v-for="cat in selectedCategories"
-          :key="cat"
-          class="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 border border-red-200 text-red-700 text-sm rounded-full capitalize"
+    <!-- Categories -->
+    <section class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold text-gray-900">Categories</h2>
+        <button
+          v-if="selectedCategory"
+          @click="selectedCategory = ''"
+          class="text-sm text-orange-600 hover:underline"
         >
-          {{ cat }}
-          <button @click="toggleCategory(cat)" class="hover:text-red-900 ml-0.5">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </span>
-        <button @click="clearSelection" class="text-xs text-gray-400 hover:text-red-500 underline ml-1">
-          Clear all
+          Show all
         </button>
       </div>
 
-      <div v-if="loading" class="text-gray-600">Loading...</div>
-      <div v-else-if="error" class="text-red-600">{{ error }}</div>
-      <div v-else-if="filteredProducts.length === 0" class="text-gray-500">
-        No products found in this category.
-      </div>
-      <div v-else class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div
-          v-for="product in filteredProducts"
-          :key="product.productId"
-          class="border rounded-lg p-4 shadow hover:shadow-lg transition"
+      <div class="flex gap-3 overflow-x-auto pb-2">
+        <button
+          @click="selectedCategory = ''"
+          :class="[
+            'px-4 py-2 rounded-full border whitespace-nowrap transition',
+            !selectedCategory
+              ? 'bg-orange-500 text-white border-orange-500'
+              : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
+          ]"
         >
-          <div class="flex items-baseline gap-3 mb-1">
-            <h2 class="text-xl font-semibold text-gray-900">{{ product.name }}</h2>
-            <span class="text-sm font-mono font-medium text-gray-500">{{ product.model }}</span>
+          All
+        </button>
+
+        <button
+          v-for="categoryId in uniqueCategories"
+          :key="categoryId"
+          @click="selectedCategory = categoryId"
+          :class="[
+            'px-4 py-2 rounded-full border whitespace-nowrap transition capitalize',
+            selectedCategory === categoryId
+              ? 'bg-orange-500 text-white border-orange-500'
+              : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
+          ]"
+        >
+          {{ getCategoryLabel(categoryId) }}
+        </button>
+      </div>
+    </section>
+
+    <!-- Loading / error -->
+    <div v-if="loading" class="text-gray-600">Loading products...</div>
+    <div v-else-if="error" class="text-red-600">{{ error }}</div>
+
+    <template v-else>
+      <!-- If a category is selected, show only that row -->
+      <section v-if="selectedCategory" class="mb-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-gray-900">
+            {{ getCategoryLabel(selectedCategory) }}
+          </h2>
+          <span class="text-sm text-gray-500">{{ filteredProducts.length }} products</span>
+        </div>
+
+        <div class="flex gap-4 overflow-x-auto pb-2">
+          <article
+            v-for="product in filteredProducts"
+            :key="product.productId"
+            class="min-w-[260px] max-w-[260px] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex-shrink-0"
+          >
+            <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
+              <img
+                v-if="product.imageUrl"
+                :src="product.imageUrl"
+                :alt="`${product.name} ${product.model}`"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
+              >
+                No Image
+              </div>
+            </div>
+
+            <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
+              {{ getCategoryLabel(product.categoryId) }}
+            </p>
+
+            <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
+              {{ product.name }}
+            </h3>
+
+            <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
+
+            <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
+              {{ product.description }}
+            </p>
+
+            <div class="mt-4 flex items-center justify-between">
+              <div>
+                <p class="text-lg font-bold text-orange-600">
+                  ${{ Number(product.price).toLocaleString() }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  Stock: {{ product.quantityInStock ?? 'N/A' }}
+                </p>
+              </div>
+
+              <router-link
+                :to="`/products/${product.productId}`"
+                class="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm hover:bg-black"
+              >
+                View
+              </router-link>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Default homepage sections -->
+      <template v-else>
+        <section class="mb-10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold text-gray-900">Popular Products</h2>
+            <span class="text-sm text-gray-500">{{ popularProducts.length }} products</span>
           </div>
 
-          <p class="mt-2 text-gray-600">{{ product.description }}</p>
+          <div class="flex gap-4 overflow-x-auto pb-2">
+            <article
+              v-for="product in popularProducts"
+              :key="product.productId"
+              class="min-w-[260px] max-w-[260px] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex-shrink-0"
+            >
+              <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
+                <img
+                  v-if="product.imageUrl"
+                  :src="product.imageUrl"
+                  :alt="`${product.name} ${product.model}`"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                >
+                  No Image
+                </div>
+              </div>
 
-          <p class="mt-3 font-semibold text-green-600">
-            ${{ product.price.toLocaleString() ?? 'N/A' }}
-          </p>
+              <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
+                {{ getCategoryLabel(product.categoryId) }}
+              </p>
 
-          <p class="text-sm text-gray-500">
-            Stock: {{ product.quantityInStock ?? 'N/A' }}
-          </p>
+              <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
+                {{ product.name }}
+              </h3>
 
-          <router-link
-            :to="`/products/${product.productId}`"
-            class="inline-block mt-4 text-blue-600 hover:underline"
-          >
-            View Details →
-          </router-link>
-        </div>
-      </div>
-    </main>
+              <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
+
+              <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
+                {{ product.description }}
+              </p>
+
+              <div class="mt-4 flex items-center justify-between">
+                <div>
+                  <p class="text-lg font-bold text-orange-600">
+                    ${{ Number(product.price).toLocaleString() }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    Stock: {{ product.quantityInStock ?? 'N/A' }}
+                  </p>
+                </div>
+
+                <router-link
+                  :to="`/products/${product.productId}`"
+                  class="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm hover:bg-black"
+                >
+                  View
+                </router-link>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Banner -->
+        <section class="grid md:grid-cols-3 gap-4 mb-10">
+          <div class="md:col-span-2 bg-orange-500 rounded-3xl p-8 text-white">
+            <p class="text-sm font-semibold mb-2">Featured Collection</p>
+            <h3 class="text-3xl font-bold mb-2">Upgrade your setup</h3>
+            <p class="text-orange-50">
+              Discover premium laptops, accessories, audio gear, and more.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-3xl p-6 border border-gray-200">
+            <p class="text-sm text-gray-500 mb-2">Store Highlight</p>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Fresh arrivals</h3>
+            <p class="text-gray-600 text-sm">
+              New products and curated picks updated across categories.
+            </p>
+          </div>
+        </section>
+
+        <section class="mb-10" v-if="laptopProducts.length">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold text-gray-900">Laptops</h2>
+            <span class="text-sm text-gray-500">{{ laptopProducts.length }} products</span>
+          </div>
+
+          <div class="flex gap-4 overflow-x-auto pb-2">
+            <article
+              v-for="product in laptopProducts"
+              :key="product.productId"
+              class="min-w-[260px] max-w-[260px] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex-shrink-0"
+            >
+              <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
+                <img
+                  v-if="product.imageUrl"
+                  :src="product.imageUrl"
+                  :alt="`${product.name} ${product.model}`"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                >
+                  No Image
+                </div>
+              </div>
+
+              <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
+                {{ getCategoryLabel(product.categoryId) }}
+              </p>
+
+              <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
+                {{ product.name }}
+              </h3>
+
+              <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
+
+              <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
+                {{ product.description }}
+              </p>
+
+              <div class="mt-4 flex items-center justify-between">
+                <div>
+                  <p class="text-lg font-bold text-orange-600">
+                    ${{ Number(product.price).toLocaleString() }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    Stock: {{ product.quantityInStock ?? 'N/A' }}
+                  </p>
+                </div>
+
+                <router-link
+                  :to="`/products/${product.productId}`"
+                  class="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm hover:bg-black"
+                >
+                  View
+                </router-link>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="mb-10" v-if="audioProducts.length">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold text-gray-900">Audio Picks</h2>
+            <span class="text-sm text-gray-500">{{ audioProducts.length }} products</span>
+          </div>
+
+          <div class="flex gap-4 overflow-x-auto pb-2">
+            <article
+              v-for="product in audioProducts"
+              :key="product.productId"
+              class="min-w-[260px] max-w-[260px] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex-shrink-0"
+            >
+              <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
+                <img
+                  v-if="product.imageUrl"
+                  :src="product.imageUrl"
+                  :alt="`${product.name} ${product.model}`"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                >
+                  No Image
+                </div>
+              </div>
+
+              <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
+                {{ getCategoryLabel(product.categoryId) }}
+              </p>
+
+              <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
+                {{ product.name }}
+              </h3>
+
+              <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
+
+              <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
+                {{ product.description }}
+              </p>
+
+              <div class="mt-4 flex items-center justify-between">
+                <div>
+                  <p class="text-lg font-bold text-orange-600">
+                    ${{ Number(product.price).toLocaleString() }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    Stock: {{ product.quantityInStock ?? 'N/A' }}
+                  </p>
+                </div>
+
+                <router-link
+                  :to="`/products/${product.productId}`"
+                  class="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm hover:bg-black"
+                >
+                  View
+                </router-link>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="mb-10" v-if="gamingProducts.length">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold text-gray-900">Gaming</h2>
+            <span class="text-sm text-gray-500">{{ gamingProducts.length }} products</span>
+          </div>
+
+          <div class="flex gap-4 overflow-x-auto pb-2">
+            <article
+              v-for="product in gamingProducts"
+              :key="product.productId"
+              class="min-w-[260px] max-w-[260px] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex-shrink-0"
+            >
+              <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
+                <img
+                  v-if="product.imageUrl"
+                  :src="product.imageUrl"
+                  :alt="`${product.name} ${product.model}`"
+                  class="w-full h-full object-cover"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                >
+                  No Image
+                </div>
+              </div>
+
+              <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
+                {{ getCategoryLabel(product.categoryId) }}
+              </p>
+
+              <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
+                {{ product.name }}
+              </h3>
+
+              <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
+
+              <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
+                {{ product.description }}
+              </p>
+
+              <div class="mt-4 flex items-center justify-between">
+                <div>
+                  <p class="text-lg font-bold text-orange-600">
+                    ${{ Number(product.price).toLocaleString() }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    Stock: {{ product.quantityInStock ?? 'N/A' }}
+                  </p>
+                </div>
+
+                <router-link
+                  :to="`/products/${product.productId}`"
+                  class="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm hover:bg-black"
+                >
+                  View
+                </router-link>
+              </div>
+            </article>
+          </div>
+        </section>
+      </template>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getProducts } from '../api/productApi'
+import { categories } from '../data/categories'
 
 const products = ref([])
 const loading = ref(true)
 const error = ref('')
-const selectedCategories = ref(new Set())
-const dropdownOpen = ref(false)
+const selectedCategory = ref('')
+
+const categoryMap = computed(() => {
+  return Object.fromEntries(categories.map(cat => [cat.categoryId, cat.name]))
+})
 
 const uniqueCategories = computed(() => {
-  const categories = new Set(products.value.map(p => p.categoryId))
-  return Array.from(categories).filter(c => c !== null && c !== undefined)
+  const ids = new Set(products.value.map(product => product.categoryId))
+  return Array.from(ids).filter(Boolean)
 })
 
 const filteredProducts = computed(() => {
-  if (selectedCategories.value.size === 0) return products.value
-  return products.value.filter(p => selectedCategories.value.has(p.categoryId))
+  if (!selectedCategory.value) return products.value
+  return products.value.filter(product => product.categoryId === selectedCategory.value)
 })
 
-function toggleCategory(categoryId) {
-  const next = new Set(selectedCategories.value)
-  if (next.has(categoryId)) {
-    next.delete(categoryId)
-  } else {
-    next.add(categoryId)
-  }
-  selectedCategories.value = next
-}
+const popularProducts = computed(() => products.value.slice(0, 8))
 
-function clearSelection() {
-  selectedCategories.value = new Set()
-  dropdownOpen.value = false
+const laptopProducts = computed(() =>
+  products.value.filter(product => {
+    const text = `${product.name} ${product.model}`.toLowerCase()
+    return (
+      text.includes('macbook') ||
+      text.includes('xps') ||
+      text.includes('thinkpad') ||
+      text.includes('spectre') ||
+      text.includes('zephyrus')
+    )
+  })
+)
+
+const audioProducts = computed(() =>
+  products.value.filter(product => {
+    const text = `${product.name} ${product.model}`.toLowerCase()
+    return (
+      text.includes('wh-1000') ||
+      text.includes('airpods') ||
+      text.includes('quietcomfort') ||
+      text.includes('charge 5') ||
+      text.includes('buds')
+    )
+  })
+)
+
+const gamingProducts = computed(() =>
+  products.value.filter(product => {
+    const text = `${product.name} ${product.model}`.toLowerCase()
+    return (
+      text.includes('playstation') ||
+      text.includes('xbox') ||
+      text.includes('switch') ||
+      text.includes('steam deck') ||
+      text.includes('rog ally')
+    )
+  })
+)
+
+const getCategoryLabel = (categoryId) => {
+  return categoryMap.value[categoryId] || categoryId
 }
 
 onMounted(async () => {

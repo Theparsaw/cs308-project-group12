@@ -17,8 +17,19 @@
 
     <div v-else class="space-y-8">
       <div class="bg-white border rounded-xl p-8 shadow-sm flex flex-col md:flex-row gap-8">
-        <div class="w-full md:w-1/2 bg-gray-100 rounded-lg flex items-center justify-center min-h-[300px]">
-          <span class="text-gray-400">No Image Available</span>
+        <div class="w-full md:w-1/2 bg-gray-100 rounded-lg min-h-[300px] overflow-hidden">
+          <img
+            v-if="product.imageUrl"
+            :src="product.imageUrl"
+            :alt="`${product.name} ${product.model}`"
+            class="w-full h-full object-cover"
+          />
+          <div
+            v-else
+            class="w-full h-full flex items-center justify-center text-gray-400"
+          >
+            <span>No Image Available</span>
+          </div>
         </div>
 
         <div class="w-full md:w-1/2 flex flex-col">
@@ -118,13 +129,28 @@
         <form class="space-y-4" @submit.prevent="handleReviewSubmit">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-            <select v-model="reviewForm.rating" class="w-full border rounded-lg px-3 py-2">
-              <option value="">Select a rating</option>
-              <option v-for="value in 5" :key="value" :value="String(value)">
-                {{ value }} star<span v-if="value > 1">s</span>
-              </option>
-            </select>
-            <p v-if="reviewErrors.rating" class="mt-1 text-sm text-red-600">{{ reviewErrors.rating }}</p>
+
+            <div class="flex gap-2">
+              <span
+                v-for="star in 5"
+                :key="star"
+                @mouseenter="hoverRating = star"
+                @mouseleave="hoverRating = 0"
+                @click="reviewForm.rating = String(star)"
+                class="text-3xl cursor-pointer transition"
+                :class="(hoverRating || Number(reviewForm.rating)) >= star ? 'text-yellow-400' : 'text-gray-300'"
+              >
+                ★
+              </span>
+            </div>
+
+            <p class="mt-1 text-sm text-gray-500">
+              {{ reviewForm.rating ? `${reviewForm.rating} star${Number(reviewForm.rating) > 1 ? 's' : ''}` : 'Select a rating' }}
+            </p>
+
+            <p v-if="reviewErrors.rating" class="mt-1 text-sm text-red-600">
+              {{ reviewErrors.rating }}
+            </p>
           </div>
 
           <div>
@@ -180,6 +206,7 @@ const cartMessageTone = ref('success')
 const submittingReview = ref(false)
 const reviewMessage = ref('')
 const reviewMessageTone = ref('success')
+const hoverRating = ref(0)
 
 const reviewForm = reactive({
   rating: '',
@@ -280,6 +307,7 @@ const handleReviewSubmit = async () => {
     reviewMessageTone.value = 'success'
     reviewForm.rating = ''
     reviewForm.comment = ''
+    hoverRating.value = 0
     await loadReviews()
   } catch (err) {
     const responseData = err?.response?.data

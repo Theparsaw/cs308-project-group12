@@ -65,6 +65,12 @@ const productSchema = new mongoose.Schema(
       default: "Unknown",
       trim: true,
     },
+
+    imageUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   {
     timestamps: true,
