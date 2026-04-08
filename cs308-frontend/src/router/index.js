@@ -11,6 +11,7 @@ import AdminProductsPage from '../pages/admin/AdminProductsPage.vue'
 import AddProductPage from '../pages/admin/AddProductPage.vue'
 import EditProductPage from '../pages/admin/EditProductPage.vue'
 import CheckoutPage from '../pages/CheckoutPage.vue'
+import PaymentPage from '../pages/PaymentPage.vue'
 
 const routes = [
   // Public routes
@@ -19,6 +20,7 @@ const routes = [
   { path: '/products/:id', component: ProductDetailPage },
   { path: '/cart', component: CartPage },
   { path: '/checkout',component: CheckoutPage, meta: { requiresAuth: true } },
+  { path: '/payment/:orderId', component: PaymentPage, meta: { requiresAuth: true } },
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
  

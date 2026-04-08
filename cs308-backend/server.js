@@ -7,6 +7,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const moderationRoutes = require("./routes/moderationRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 // Import authentication routes for register and login endpoints
 const authRoutes = require("./routes/authRoutes");
 
@@ -28,6 +29,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/moderation", moderationRoutes);
 app.use("/api/checkout", checkoutRoutes);
+app.use("/api/payments", paymentRoutes);
 // Mount authentication routes under /api/auth
 app.use("/api/auth", authRoutes);
 
