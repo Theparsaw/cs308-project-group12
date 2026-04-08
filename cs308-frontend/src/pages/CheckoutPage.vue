@@ -123,11 +123,8 @@ const handlePlaceOrder = async () => {
   try {
     await validateCheckout()
     const res = await createOrder()
-
-    actionMessage.value = 'Order created successfully'
-
     const orderId = res.data.order.id
-    actionMessage.value = `Order created successfully. Order ID: ${orderId}`
+    router.push(`/payment/${orderId}`)
   } catch (err) {
     actionError.value = err?.response?.data?.message || 'Failed to place order'
   } finally {
