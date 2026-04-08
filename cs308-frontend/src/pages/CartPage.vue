@@ -93,6 +93,12 @@
           <span class="font-medium text-slate-700">Total Price</span>
           <span class="font-bold text-slate-900">${{ cart.totalPrice.toLocaleString() }}</span>
         </div>
+        <router-link
+          to="/checkout"
+          class="mt-6 block w-full rounded-lg bg-slate-900 px-4 py-3 text-center text-white hover:bg-slate-800"
+        >
+          Proceed to Checkout
+        </router-link>
       </aside>
     </div>
   </div>

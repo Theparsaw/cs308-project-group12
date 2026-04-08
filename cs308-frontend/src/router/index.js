@@ -10,6 +10,7 @@ import RegisterPage from '../pages/RegisterPage.vue'
 import AdminProductsPage from '../pages/admin/AdminProductsPage.vue'
 import AddProductPage from '../pages/admin/AddProductPage.vue'
 import EditProductPage from '../pages/admin/EditProductPage.vue'
+import CheckoutPage from '../pages/CheckoutPage.vue'
 
 const routes = [
   // Public routes
@@ -17,9 +18,10 @@ const routes = [
   { path: '/products', redirect: '/' },
   { path: '/products/:id', component: ProductDetailPage },
   { path: '/cart', component: CartPage },
+  { path: '/checkout',component: CheckoutPage, meta: { requiresAuth: true } },
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
-
+ 
   // Protected admin routes
   {
     path: '/admin/products',
@@ -49,16 +51,21 @@ router.beforeEach((to, from, next) => {
 
   if (requiresAuth) {
     if (!authStore.isLoggedIn) {
-      return next('/login')
+      return next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
     }
 
     const allowedRoles = to.meta.roles || []
-    if (!allowedRoles.includes(authStore.role)) {
+
+    if (allowedRoles.length > 0 && !allowedRoles.includes(authStore.role)) {
       return next('/')
     }
   }
 
   next()
 })
+
 
 export default router
