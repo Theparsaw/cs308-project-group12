@@ -5,8 +5,18 @@ const notFound = (req, res, next) => {
 };
 
 const errorHandler = (error, req, res, next) => {
-  const statusCode = error.statusCode || 500;
-  const code = error.code || "INTERNAL_SERVER_ERROR";
+  let statusCode = error.statusCode || 500;
+  let code = error.code || "INTERNAL_SERVER_ERROR";
+
+  // Convert multer upload errors into friendly API responses for the profile form
+  if (error.name === "MulterError") {
+    statusCode = 400;
+    code = error.code || "UPLOAD_ERROR";
+
+    if (error.code === "LIMIT_FILE_SIZE") {
+      error.message = "Please choose an image smaller than 2MB";
+    }
+  }
 
   if (res.headersSent) {
     return next(error);

@@ -27,6 +27,12 @@ export const authStore = reactive({
     localStorage.setItem('user', JSON.stringify(user))
   },
 
+  // Called when profile fields change — keeps shared UI in sync without changing the token
+  updateUser(user) {
+    this.user = user
+    localStorage.setItem('user', JSON.stringify(user))
+  },
+
   // Called when user logs out — clears everything
   clearAuth() {
     this.token = null

@@ -49,7 +49,7 @@
             </span>
           </router-link>
 
-          <!-- Login -->
+          <!-- Login — only shown when NOT logged in -->
           <router-link
             v-if="!authStore.isLoggedIn"
             to="/login"
@@ -72,31 +72,56 @@
             <span class="text-sm font-medium text-gray-800">Login</span>
           </router-link>
 
-          <!-- Logout -->
-          <button
-            v-else
-            type="button"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition cursor-pointer"
-            @click="handleLogout"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-700"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="1.8"
+          <!-- Logged in — show profile link and logout button -->
+          <template v-else>
+            <!-- Profile link — shows user's name, clicks to profile page -->
+            <router-link
+              to="/profile"
+              class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m-3-3h8.25m0 0l-3-3m3 3l-3 3"
+              <!-- Show the saved profile photo when available -->
+              <img
+                v-if="authStore.user?.profileImage"
+                :src="getProfileImageUrl(authStore.user.profileImage)"
+                alt="Profile photo"
+                class="w-6 h-6 rounded-full object-cover border border-orange-200"
               />
-            </svg>
-            <span class="text-sm font-medium text-gray-800">Logout</span>
-          </button>
 
-          <!-- Admin -->
+              <!-- Otherwise fall back to the user's first initial -->
+              <div
+                v-else
+                class="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold"
+              >
+                {{ authStore.user?.name?.charAt(0).toUpperCase() }}
+              </div>
+              <span class="text-sm font-medium text-gray-800">{{ authStore.user?.name }}</span>
+            </router-link>
+
+            <!-- Logout button -->
+            <button
+              type="button"
+              class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition cursor-pointer"
+              @click="handleLogout"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-700"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.8"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m-3-3h8.25m0 0l-3-3m3 3l-3 3"
+                />
+              </svg>
+              <span class="text-sm font-medium text-gray-800">Logout</span>
+            </button>
+          </template>
+
+          <!-- Admin button — only shown for managers -->
           <router-link
             v-if="authStore.isLoggedIn && ['sales_manager', 'product_manager'].includes(authStore.role)"
             to="/admin/products"
@@ -117,6 +142,7 @@
 <script setup>
 import { onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { resolveAssetUrl } from './api/authApi'
 import { getCart } from './api/cartApi'
 import { authStore } from './store/auth'
 import { cartStore } from './store/cart'
@@ -124,6 +150,9 @@ import { cartStore } from './store/cart'
 const router = useRouter()
 const route = useRoute()
 const searchInput = ref('')
+
+// Turn backend upload paths into image URLs the browser can render
+const getProfileImageUrl = (value) => resolveAssetUrl(value)
 
 const syncCartCount = async () => {
   try {
@@ -142,7 +171,6 @@ const handleLogout = () => {
 
 const submitSearch = () => {
   const trimmed = searchInput.value.trim()
-
   router.push({
     path: '/',
     query: trimmed ? { search: trimmed } : {}

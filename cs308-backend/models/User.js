@@ -33,6 +33,11 @@ const userSchema = new mongoose.Schema(
       set: encryptValue,
       get: decryptValue,
     },
+    // Stores the user's profile photo as a string value that the frontend can render
+    profileImage: {
+      type: String,
+      default: "",
+    },
     role: {
       type: String,
       enum: ["customer", "sales_manager", "product_manager"],

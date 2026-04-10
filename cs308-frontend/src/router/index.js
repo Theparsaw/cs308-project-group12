@@ -9,7 +9,7 @@ import LoginPage from '../pages/LoginPage.vue'
 import RegisterPage from '../pages/RegisterPage.vue'
 import CheckoutPage from '../pages/CheckoutPage.vue'
 import PaymentPage from '../pages/PaymentPage.vue'
-
+import ProfilePage from '../pages/ProfilePage.vue'
 // Admin layout + pages
 import AdminLayout from '../components/admin/AdminLayout.vue'
 import AdminProductsPage from '../pages/admin/AdminProductsPage.vue'
@@ -34,7 +34,7 @@ const routes = [
   { path: '/payment/:orderId', component: PaymentPage, meta: { requiresAuth: true } },
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
-
+  { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
   // Admin routes
   {
     path: '/admin',
