@@ -110,7 +110,7 @@
           <div>
             <h2 class="text-2xl font-semibold text-gray-900">Write a Review</h2>
             <p class="text-sm text-gray-500 mt-1">
-              {{ authStore.isLoggedIn ? 'Your review will be submitted for approval.' : 'Log in to submit a review.' }}
+              {{ authStore.isLoggedIn ? 'Your review will be submitted for approval. A comment is optional.' : 'Log in to submit a review.' }}
             </p>
           </div>
           <button
@@ -154,12 +154,12 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Comment (Optional)</label>
             <textarea
               v-model="reviewForm.comment"
               rows="5"
               class="w-full border rounded-lg px-3 py-2"
-              placeholder="Share what you liked or disliked about this product."
+              placeholder="Share what you liked or disliked about this product, if you want."
             />
             <p class="mt-1 text-xs text-gray-500">{{ reviewForm.comment.trim().length }}/500</p>
             <p v-if="reviewErrors.comment" class="mt-1 text-sm text-red-600">{{ reviewErrors.comment }}</p>
@@ -188,6 +188,7 @@ import { addItemToCart } from '../api/cartApi'
 import { getProductById } from '../api/productApi'
 import { createReview, getApprovedReviewsByProductId } from '../api/reviewApi'
 import { authStore } from '../store/auth'
+import { cartStore } from '../store/cart'
 
 const route = useRoute()
 const router = useRouter()
@@ -274,7 +275,8 @@ const handleAddToCart = async () => {
   cartMessage.value = ''
 
   try {
-    await addItemToCart(product.value.productId, quantity.value)
+    const res = await addItemToCart(product.value.productId, quantity.value)
+    cartStore.setTotalItems(res.data?.totalItems)
     cartMessage.value = `${quantity.value} item(s) added to cart`
     cartMessageTone.value = 'success'
   } catch (err) {

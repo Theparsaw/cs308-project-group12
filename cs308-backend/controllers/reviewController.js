@@ -29,9 +29,7 @@ const validateReviewInput = ({ productId, rating, comment }) => {
     errors.rating = "rating must be an integer between 1 and 5";
   }
 
-  if (!normalizedComment) {
-    errors.comment = "comment is required";
-  } else {
+  if (normalizedComment) {
     if (normalizedComment.length < 10) {
       errors.comment = "comment must be at least 10 characters long";
     } else if (normalizedComment.length > 500) {
@@ -96,7 +94,7 @@ const getApprovedReviewsForProduct = asyncHandler(async (req, res) => {
 
 // POST /api/reviews
 // Expected body:
-// { productId: string, rating: 1-5 (int), comment: string }
+// { productId: string, rating: 1-5 (int), comment?: string }
 const createReview = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const { productId, rating, comment } = req.body;

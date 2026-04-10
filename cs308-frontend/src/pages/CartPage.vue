@@ -35,15 +35,28 @@
           class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
         >
           <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+            <div class="flex gap-4">
+              <div class="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                <img
+                  v-if="item.imageUrl"
+                  :src="item.imageUrl"
+                  :alt="item.name"
+                  class="h-full w-full object-cover"
+                />
+                <div v-else class="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                  No image
+                </div>
+              </div>
+
+              <div>
               <h2 class="text-xl font-semibold text-slate-900">{{ item.name }}</h2>
-              <p class="mt-1 text-slate-500">Product ID: {{ item.productId }}</p>
               <p class="mt-3 text-lg font-semibold text-green-700">
                 ${{ item.unitPrice.toLocaleString() }}
               </p>
               <p class="mt-1 text-sm text-slate-500">
                 Subtotal: ${{ (item.unitPrice * item.quantity).toLocaleString() }}
               </p>
+              </div>
             </div>
 
             <div class="sm:text-right">
@@ -107,6 +120,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { getCart, removeCartItem, updateCartItemQuantity } from '../api/cartApi'
+import { cartStore } from '../store/cart'
 
 const cart = ref({
   cartId: '',
@@ -126,6 +140,7 @@ const setCartState = (nextCart) => {
     totalItems: nextCart.totalItems ?? 0,
     totalPrice: nextCart.totalPrice ?? 0,
   }
+  cartStore.setTotalItems(cart.value.totalItems)
 }
 
 const loadCart = async () => {

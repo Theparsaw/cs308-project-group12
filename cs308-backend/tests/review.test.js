@@ -88,6 +88,28 @@ describe("Review validation and integration flow", () => {
     );
   });
 
+  test("POST /api/reviews allows rating-only reviews without a comment", async () => {
+    const registerRes = await request(app).post("/api/auth/register").send({
+      name: "Rating Only User",
+      email: createEmail("rating-only"),
+      password: "Password123!",
+    });
+    createdUserIds.push(registerRes.body.user.id);
+
+    const res = await request(app)
+      .post("/api/reviews")
+      .set("Authorization", `Bearer ${registerRes.body.token}`)
+      .send({
+        productId: "p001",
+        rating: 4,
+        comment: "",
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.review.rating).toBe(4);
+    expect(res.body.review.comment).toBe("");
+  });
+
   test("GET /api/reviews/product/:productId hides pending reviews and shows approved ones", async () => {
     const registerRes = await request(app).post("/api/auth/register").send({
       name: "Approved User",
