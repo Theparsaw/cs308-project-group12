@@ -184,7 +184,7 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { addItemToCart } from '../api/cartApi'
+import { addGuestItemToCart, addItemToCart } from '../api/cartApi'
 import { getProductById } from '../api/productApi'
 import { createReview, getApprovedReviewsByProductId } from '../api/reviewApi'
 import { authStore } from '../store/auth'
@@ -266,16 +266,14 @@ const loadReviews = async () => {
 }
 
 const handleAddToCart = async () => {
-  if (!authStore.isLoggedIn) {
-    router.push('/login?reason=cart-auth-required')
-    return
-  }
-
   addingToCart.value = true
   cartMessage.value = ''
 
   try {
-    const res = await addItemToCart(product.value.productId, quantity.value)
+    const res = authStore.isLoggedIn
+      ? await addItemToCart(product.value.productId, quantity.value)
+      : await addGuestItemToCart(product.value, quantity.value)
+
     cartStore.setTotalItems(res.data?.totalItems)
     cartMessage.value = `${quantity.value} item(s) added to cart`
     cartMessageTone.value = 'success'

@@ -121,11 +121,6 @@ import { cartStore } from './store/cart'
 const router = useRouter()
 
 const syncCartCount = async () => {
-  if (!authStore.isLoggedIn) {
-    cartStore.clear()
-    return
-  }
-
   try {
     const res = await getCart()
     cartStore.setTotalItems(res.data?.totalItems)

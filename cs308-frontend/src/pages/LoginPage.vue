@@ -56,12 +56,14 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { loginUser } from '../api/authApi'
-import { resetCartId } from '../api/cartApi'
+import { getCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
 import { authStore } from '../store/auth'
+import { cartStore } from '../store/cart'
 
 // Router lets us redirect the user after login
+const route = useRoute()
 const router = useRouter()
 
 // Form fields — v-model connects these to the input fields above
@@ -83,7 +85,15 @@ const handleLogin = async () => {
 
     // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
-    resetCartId()
+    
+    try {
+      await mergeGuestCartIntoUserCart()
+      const cartRes = await getCart()
+      cartStore.setTotalItems(cartRes.data?.totalItems)
+    } catch (mergeError) {
+      error.value = mergeError?.response?.data?.message || 'Logged in, but failed to restore your cart.'
+      return
+    }
 
     // Redirect based on role
     if (res.data.user.role === 'sales_manager') {
@@ -91,8 +101,7 @@ const handleLogin = async () => {
     } else if (res.data.user.role === 'product_manager') {
       router.push('/admin/products')
     } else {
-      // Regular customers go to the home page
-      router.push('/')
+      router.push(route.query.redirect || '/')
     }
 
   } catch (err) {
