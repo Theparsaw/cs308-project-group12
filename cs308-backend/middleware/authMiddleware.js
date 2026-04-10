@@ -1,40 +1,65 @@
-// Import jsonwebtoken so we can verify incoming JWT tokens
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const AppError = require("../utils/appError");
+const asyncHandler = require("../utils/asyncHandler");
+const { getJwtSecret } = require("../utils/jwt");
 
-// Middleware to protect routes that require a logged-in user
-const authMiddleware = (req, res, next) => {
-  // Read the Authorization header from the incoming request
+const authMiddleware = asyncHandler(async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  // If there is no Authorization header, block access
   if (!authHeader) {
-    return res.status(401).json({ message: "No token provided" });
+    throw new AppError("Authentication token is required", 401, "AUTH_REQUIRED");
   }
 
-  // The token should come in the format: Bearer <token>
   const parts = authHeader.split(" ");
 
-  // If the format is wrong, block access
   if (parts.length !== 2 || parts[0] !== "Bearer") {
-    return res.status(401).json({ message: "Invalid token format" });
+    throw new AppError("Invalid token format", 401, "INVALID_TOKEN_FORMAT");
   }
 
   const token = parts[1];
 
   try {
-    // Verify the token using the secret stored in the environment
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
+    const user = await User.findById(decoded.id).select("_id name email role");
 
-    // Save the decoded user information on the request object
-    req.user = decoded;
+    if (!user) {
+      throw new AppError("User no longer exists", 401, "USER_NOT_FOUND");
+    }
 
-    // Continue to the next middleware or route handler
-    next();
+    req.user = {
+      id: String(user._id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+    return next();
   } catch (error) {
-    // If the token is invalid or expired, block access
-    return res.status(401).json({ message: "Invalid or expired token" });
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    if (error.name === "TokenExpiredError") {
+      throw new AppError("Token has expired", 401, "TOKEN_EXPIRED");
+    }
+
+    throw new AppError("Invalid token", 401, "INVALID_TOKEN");
   }
+});
+
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user) {
+    return next(new AppError("Authentication required", 401, "AUTH_REQUIRED"));
+  }
+
+  if (!roles.includes(req.user.role)) {
+    return next(new AppError("You are not allowed to access this resource", 403, "FORBIDDEN"));
+  }
+
+  return next();
 };
 
-// Export the middleware so it can be used in route files
-module.exports = authMiddleware;
+module.exports = {
+  authMiddleware,
+  authorize,
+};

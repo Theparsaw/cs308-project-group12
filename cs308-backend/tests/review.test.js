@@ -24,7 +24,7 @@ describe("Review validation and integration flow", () => {
     });
 
     expect(res.statusCode).toBe(401);
-    expect(res.body.message).toBe("No token provided");
+    expect(res.body.code).toBe("AUTH_REQUIRED");
   });
 
   test("POST /api/reviews returns validation errors for invalid input", async () => {
@@ -46,10 +46,10 @@ describe("Review validation and integration flow", () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.body.message).toBe("Validation failed");
-    expect(res.body.errors.rating).toBe(
+    expect(res.body.details.rating).toBe(
       "rating must be an integer between 1 and 5"
     );
-    expect(res.body.errors.comment).toBe(
+    expect(res.body.details.comment).toBe(
       "comment must be at least 10 characters long"
     );
   });

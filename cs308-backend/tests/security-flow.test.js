@@ -1,0 +1,179 @@
+const request = require("supertest");
+const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const app = require("../server");
+const User = require("../models/User");
+const Cart = require("../models/Cart");
+const Product = require("../models/Product");
+const { getJwtSecret } = require("../utils/jwt");
+
+const createdUserIds = [];
+const createdProductIds = [];
+const createdCartIds = [];
+
+const createEmail = (label) => `security-${label}-${Date.now()}@example.com`;
+const createCartId = (label) => `security-cart-${label}-${Date.now()}`;
+
+const registerCustomer = async (label, extra = {}) => {
+  const response = await request(app).post("/api/auth/register").send({
+    name: `${label} User`,
+    email: createEmail(label),
+    password: "Password123!",
+    ...extra,
+  });
+
+  createdUserIds.push(response.body.user.id);
+  return response;
+};
+
+beforeAll(async () => {
+  const password = await bcrypt.hash("ManagerPass123!", 10);
+  const manager = await User.create({
+    name: "Security Manager",
+    email: createEmail("manager"),
+    password,
+    role: "product_manager",
+  });
+  createdUserIds.push(manager._id.toString());
+});
+
+afterAll(async () => {
+  if (createdProductIds.length > 0) {
+    await Product.deleteMany({ productId: { $in: createdProductIds } });
+  }
+  if (createdCartIds.length > 0) {
+    await Cart.deleteMany({ cartId: { $in: createdCartIds } });
+  }
+  if (createdUserIds.length > 0) {
+    await User.deleteMany({ _id: { $in: createdUserIds } });
+  }
+  await mongoose.connection.close();
+});
+
+describe("Security and end-to-end integration", () => {
+  test("register encrypts sensitive fields at rest and does not expose them in responses", async () => {
+    const registerRes = await registerCustomer("encrypted", {
+      taxId: "1234567890",
+      address: "742 Evergreen Terrace",
+    });
+
+    expect(registerRes.statusCode).toBe(201);
+    expect(registerRes.body.user.taxId).toBeUndefined();
+    expect(registerRes.body.user.address).toBeUndefined();
+
+    const storedUser = await User.collection.findOne({ _id: new mongoose.Types.ObjectId(registerRes.body.user.id) });
+    expect(storedUser.taxId).not.toBe("1234567890");
+    expect(storedUser.address).not.toBe("742 Evergreen Terrace");
+  });
+
+  test("expired tokens are rejected explicitly", async () => {
+    const registerRes = await registerCustomer("expired");
+    const expiredToken = jwt.sign(
+      { id: registerRes.body.user.id, role: "customer" },
+      getJwtSecret(),
+      { expiresIn: -10 }
+    );
+
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Authorization", `Bearer ${expiredToken}`);
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body.code).toBe("TOKEN_EXPIRED");
+    expect(res.body.message).toBe("Token has expired");
+  });
+
+  test("payment failures are handled gracefully without mutating stock", async () => {
+    const registerRes = await registerCustomer("payment-fail");
+    const token = registerRes.body.token;
+    const cartId = createCartId("payment-fail");
+    createdCartIds.push(cartId);
+
+    await request(app)
+      .post(`/api/cart/${cartId}/items`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ productId: "p001", quantity: 1 });
+
+    const stockBefore = await Product.findOne({ productId: "p001" }).lean();
+
+    const checkoutRes = await request(app)
+      .post(`/api/cart/${cartId}/checkout`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        paymentMethod: {
+          cardholderName: "Failure Case",
+          cardNumber: "4111111111110000",
+        },
+      });
+
+    expect(checkoutRes.statusCode).toBe(402);
+    expect(checkoutRes.body.code).toBe("PAYMENT_FAILED");
+
+    const stockAfter = await Product.findOne({ productId: "p001" }).lean();
+    const cartAfter = await Cart.findOne({ cartId }).lean();
+    expect(stockAfter.quantityInStock).toBe(stockBefore.quantityInStock);
+    expect(cartAfter.items).toHaveLength(1);
+  });
+
+  test("authorized full flow works end-to-end", async () => {
+    const managerLoginRes = await request(app).post("/api/auth/login").send({
+      email: (await User.findById(createdUserIds[0]).lean()).email,
+      password: "ManagerPass123!",
+    });
+
+    const createProductRes = await request(app)
+      .post("/api/products")
+      .set("Authorization", `Bearer ${managerLoginRes.body.token}`)
+      .send({
+        productId: `itest-${Date.now()}`,
+        categoryId: "cat-itest",
+        name: "Integration",
+        model: "Secure Flow",
+        serialNumber: `ITEST-${Date.now()}`,
+        description: "Product used to validate secure checkout end to end",
+        quantityInStock: 5,
+        price: 250,
+        warrantyStatus: "2 years",
+        distributorInfo: "Integration Distributor",
+      });
+
+    expect(createProductRes.statusCode).toBe(201);
+    createdProductIds.push(createProductRes.body.product.productId);
+
+    const customerRes = await registerCustomer("full-flow");
+    const token = customerRes.body.token;
+    const cartId = createCartId("full-flow");
+    createdCartIds.push(cartId);
+
+    const addToCartRes = await request(app)
+      .post(`/api/cart/${cartId}/items`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ productId: createProductRes.body.product.productId, quantity: 2 });
+
+    expect(addToCartRes.statusCode).toBe(200);
+    expect(addToCartRes.body.totalPrice).toBe(500);
+
+    const checkoutRes = await request(app)
+      .post(`/api/cart/${cartId}/checkout`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        paymentMethod: {
+          cardholderName: "Happy Path",
+          cardNumber: "4242424242424242",
+        },
+      });
+
+    expect(checkoutRes.statusCode).toBe(200);
+    expect(checkoutRes.body.message).toBe("Checkout completed successfully");
+
+    const productAfterCheckout = await Product.findOne({
+      productId: createProductRes.body.product.productId,
+    }).lean();
+    const cartAfterCheckout = await Cart.findOne({ cartId }).lean();
+
+    expect(productAfterCheckout.quantityInStock).toBe(3);
+    expect(cartAfterCheckout.items).toEqual([]);
+    expect(cartAfterCheckout.totalPrice).toBe(0);
+  });
+});

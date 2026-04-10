@@ -18,8 +18,8 @@ const routes = [
   { path: '/', component: ProductsPage },
   { path: '/products', redirect: '/' },
   { path: '/products/:id', component: ProductDetailPage },
-  { path: '/cart', component: CartPage },
-  { path: '/checkout',component: CheckoutPage, meta: { requiresAuth: true } },
+  { path: '/cart', component: CartPage, meta: { requiresAuth: true } },
+  { path: '/checkout', component: CheckoutPage, meta: { requiresAuth: true } },
   { path: '/payment/:orderId', component: PaymentPage, meta: { requiresAuth: true } },
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
@@ -68,6 +68,4 @@ router.beforeEach((to, from, next) => {
 
   next()
 })
-
-
 export default router

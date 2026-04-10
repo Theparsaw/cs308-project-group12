@@ -8,8 +8,8 @@ const reviewRoutes = require("./routes/reviewRoutes");
 const moderationRoutes = require("./routes/moderationRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
-// Import authentication routes for register and login endpoints
 const authRoutes = require("./routes/authRoutes");
+const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 dotenv.config();
 
@@ -30,9 +30,9 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/moderation", moderationRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/payments", paymentRoutes);
-// Mount authentication routes under /api/auth
 app.use("/api/auth", authRoutes);
-
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 
@@ -43,4 +43,3 @@ if (require.main === module) {
 }
 
 module.exports = app;
-

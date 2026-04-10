@@ -265,6 +265,11 @@ const loadReviews = async () => {
 }
 
 const handleAddToCart = async () => {
+  if (!authStore.isLoggedIn) {
+    router.push('/login?reason=cart-auth-required')
+    return
+  }
+
   addingToCart.value = true
   cartMessage.value = ''
 
@@ -311,7 +316,7 @@ const handleReviewSubmit = async () => {
     await loadReviews()
   } catch (err) {
     const responseData = err?.response?.data
-    const errors = responseData?.errors || {}
+    const errors = responseData?.details || responseData?.errors || {}
 
     reviewErrors.rating = errors.rating || ''
     reviewErrors.comment = errors.comment || ''

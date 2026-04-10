@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { encryptValue, decryptValue } = require("../utils/encryption");
 
 const userSchema = new mongoose.Schema(
   {
@@ -22,11 +23,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+      set: encryptValue,
+      get: decryptValue,
     },
     address: {
       type: String,
       trim: true,
       default: "",
+      set: encryptValue,
+      get: decryptValue,
     },
     role: {
       type: String,
@@ -36,6 +41,8 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { getters: true },
+    toObject: { getters: true },
   }
 );
 

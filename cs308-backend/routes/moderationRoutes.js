@@ -5,7 +5,9 @@ const {
   approveReview,
   rejectReview,
 } = require("../controllers/moderationController");
+const { authMiddleware, authorize } = require("../middleware/authMiddleware");
 
+router.use(authMiddleware, authorize("sales_manager", "product_manager"));
 router.get("/reviews/pending", getPendingReviews);
 router.patch("/reviews/:id/approve", approveReview);
 router.patch("/reviews/:id/reject", rejectReview);

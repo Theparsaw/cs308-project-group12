@@ -33,3 +33,6 @@ export const updateCartItemQuantity = (productId, quantity, cartId = getCartId()
 
 export const removeCartItem = (productId, cartId = getCartId()) =>
   api.delete(`/cart/${cartId}/items/${productId}`)
+
+export const checkoutCart = (paymentMethod, cartId = getCartId()) =>
+  api.post(`/cart/${cartId}/checkout`, { paymentMethod })
