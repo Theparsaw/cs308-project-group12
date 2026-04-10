@@ -9,11 +9,14 @@
 
         <!-- Search bar -->
         <div class="flex-1">
-          <input
-            type="text"
-            placeholder="Search products, categories, brands..."
-            class="w-full border border-orange-300 rounded-full px-5 py-3 outline-none focus:border-orange-500"
-          />
+          <form @submit.prevent="submitSearch">
+            <input
+              v-model="searchInput"
+              type="text"
+              placeholder="Search products, categories, brands..."
+              class="w-full border border-orange-300 rounded-full px-5 py-3 outline-none focus:border-orange-500"
+            />
+          </form>
         </div>
 
         <!-- Right side actions -->
@@ -112,13 +115,15 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, watch, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getCart } from './api/cartApi'
 import { authStore } from './store/auth'
 import { cartStore } from './store/cart'
 
 const router = useRouter()
+const route = useRoute()
+const searchInput = ref('')
 
 const syncCartCount = async () => {
   try {
@@ -134,6 +139,23 @@ const handleLogout = () => {
   cartStore.clear()
   router.push('/login')
 }
+
+const submitSearch = () => {
+  const trimmed = searchInput.value.trim()
+
+  router.push({
+    path: '/',
+    query: trimmed ? { search: trimmed } : {}
+  })
+}
+
+watch(
+  () => route.query.search,
+  (newSearch) => {
+    searchInput.value = typeof newSearch === 'string' ? newSearch : ''
+  },
+  { immediate: true }
+)
 
 watch(
   () => authStore.token,

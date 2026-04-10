@@ -10,3 +10,12 @@ export const createReview = (data) =>
       Authorization: `Bearer ${authStore.token}`,
     },
   })
+
+export const getPendingReviews = () =>
+  api.get('/moderation/reviews/pending')
+
+export const approveReview = (id) =>
+  api.patch(`/moderation/reviews/${id}/approve`)
+
+export const rejectReview = (id) =>
+  api.patch(`/moderation/reviews/${id}/reject`)

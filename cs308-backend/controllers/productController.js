@@ -2,9 +2,108 @@ const Product = require("../models/Product");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
 
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildRegexFallbackFilter = (search) => {
+  const terms = String(search)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((term) => escapeRegex(term));
+
+  if (terms.length === 0) return {};
+
+  return {
+    $or: terms.flatMap((term) => {
+      const regex = new RegExp(term, "i");
+      return [
+        { name: regex },
+        { model: regex },
+        { description: regex },
+        { categoryId: regex },
+        { productId: regex },
+      ];
+    }),
+  };
+};
+
 const getAllProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({}).sort({ createdAt: -1 });
-  res.status(200).json(products);
+  const rawSearch = req.query.search;
+  const search = typeof rawSearch === "string" ? rawSearch.trim() : "";
+
+  // Original behavior: no search query -> return all products
+  if (!search) {
+    const products = await Product.find({}).sort({ createdAt: -1 });
+    return res.status(200).json(products);
+  }
+
+  try {
+    // Atlas Search version
+    // Make sure you create an Atlas Search index on the products collection.
+    // Suggested index name: "product_search"
+    const products = await Product.aggregate([
+      {
+        $search: {
+          index: "product_search",
+          compound: {
+            should: [
+              {
+                autocomplete: {
+                  query: search,
+                  path: "name",
+                  fuzzy: {
+                    maxEdits: 1,
+                    prefixLength: 1,
+                  },
+                },
+              },
+              {
+                autocomplete: {
+                  query: search,
+                  path: "model",
+                  fuzzy: {
+                    maxEdits: 1,
+                    prefixLength: 1,
+                  },
+                },
+              },
+              {
+                text: {
+                  query: search,
+                  path: ["name", "model", "description", "categoryId", "productId"],
+                  fuzzy: {
+                    maxEdits: 1,
+                    prefixLength: 1,
+                  },
+                },
+              },
+            ],
+            minimumShouldMatch: 1,
+          },
+        },
+      },
+      {
+        $addFields: {
+          score: { $meta: "searchScore" },
+        },
+      },
+      {
+        $sort: {
+          score: -1,
+          createdAt: -1,
+        },
+      },
+    ]);
+
+    return res.status(200).json(products);
+  } catch (error) {
+    // Safe fallback so search still works even if Atlas Search index
+    // is not created yet or aggregation search is unavailable.
+    const fallbackFilter = buildRegexFallbackFilter(search);
+    const products = await Product.find(fallbackFilter).sort({ createdAt: -1 });
+    return res.status(200).json(products);
+  }
 });
 
 const getProductById = asyncHandler(async (req, res) => {
