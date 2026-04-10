@@ -62,6 +62,8 @@ import { getCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
+const CART_MERGE_ERROR_KEY = 'cart-merge-error'
+
 // Router lets us redirect the user after login
 const route = useRoute()
 const router = useRouter()
@@ -91,7 +93,13 @@ const handleLogin = async () => {
       const cartRes = await getCart()
       cartStore.setTotalItems(cartRes.data?.totalItems)
     } catch (mergeError) {
-      error.value = mergeError?.response?.data?.message || 'Logged in, but failed to restore your cart.'
+      const message =
+        mergeError?.response?.data?.message || 'Logged in, but some cart items could not be restored.'
+
+      localStorage.setItem(CART_MERGE_ERROR_KEY, message)
+      const cartRes = await getCart()
+      cartStore.setTotalItems(cartRes.data?.totalItems)
+      router.push('/cart')
       return
     }
 

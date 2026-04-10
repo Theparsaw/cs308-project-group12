@@ -38,6 +38,30 @@ const serializeOrder = (order) => ({
   updatedAt: order.updatedAt,
 });
 
+const validateOrderStock = async (items) => {
+  for (const item of items) {
+    const product = await Product.findOne({ productId: item.productId });
+
+    if (!product) {
+      return {
+        valid: false,
+        message: `Product not found: ${item.productId}`,
+      };
+    }
+
+    if (product.quantityInStock < item.quantity) {
+      return {
+        valid: false,
+        message: `Not enough stock for ${item.name}`,
+        productId: item.productId,
+        availableStock: product.quantityInStock,
+      };
+    }
+  }
+
+  return { valid: true };
+};
+
 const getOrderForPayment = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -50,6 +74,12 @@ const getOrderForPayment = async (req, res) => {
 
     if (order.userId !== req.user.id) {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    const stockCheck = await validateOrderStock(order.items);
+
+    if (!stockCheck.valid) {
+      return res.status(400).json(stockCheck);
     }
 
     return res.status(200).json({
@@ -114,23 +144,13 @@ const processPayment = async (req, res) => {
       });
     }
 
-    for (const item of order.items) {
-      const product = await Product.findOne({ productId: item.productId });
+    const stockCheck = await validateOrderStock(order.items);
 
-      if (!product) {
-        return res.status(400).json({
-          message: `Product not found: ${item.productId}`,
-        });
-      }
+    if (!stockCheck.valid) {
+      order.status = "payment_failed";
+      await order.save();
 
-      if (product.quantityInStock < item.quantity) {
-        order.status = "payment_failed";
-        await order.save();
-
-        return res.status(400).json({
-          message: `Not enough stock for ${item.name}`,
-        });
-      }
+      return res.status(400).json(stockCheck);
     }
 
     const success = simulatePaymentResult(cleanedCardNumber);

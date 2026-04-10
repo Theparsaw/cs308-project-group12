@@ -11,11 +11,14 @@
     </div>
 
     <div v-if="loading" class="text-slate-600">Loading cart...</div>
+    <div v-else-if="pageNotice" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+      {{ pageNotice }}
+    </div>
     <div v-else-if="pageError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
       {{ pageError }}
     </div>
     <div
-      v-else-if="cart.items.length === 0"
+      v-if="!loading && !pageError && cart.items.length === 0"
       class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center"
     >
       <h2 class="text-2xl font-semibold text-slate-800">Your cart is empty</h2>
@@ -27,7 +30,7 @@
         Browse Products
       </router-link>
     </div>
-    <div v-else class="grid gap-6 lg:grid-cols-[1fr_280px]">
+    <div v-if="!loading && !pageError && cart.items.length > 0" class="grid gap-6 lg:grid-cols-[1fr_280px]">
       <div class="space-y-4">
         <div
           v-for="item in cart.items"
@@ -122,6 +125,8 @@ import { onMounted, ref } from 'vue'
 import { getCart, removeCartItem, updateCartItemQuantity } from '../api/cartApi'
 import { cartStore } from '../store/cart'
 
+const CART_MERGE_ERROR_KEY = 'cart-merge-error'
+
 const cart = ref({
   cartId: '',
   items: [],
@@ -130,6 +135,7 @@ const cart = ref({
 })
 const loading = ref(true)
 const pageError = ref('')
+const pageNotice = ref('')
 const itemErrors = ref({})
 const pendingItems = ref({})
 
@@ -146,6 +152,8 @@ const setCartState = (nextCart) => {
 const loadCart = async () => {
   loading.value = true
   pageError.value = ''
+  pageNotice.value = localStorage.getItem(CART_MERGE_ERROR_KEY) || ''
+  localStorage.removeItem(CART_MERGE_ERROR_KEY)
 
   try {
     const res = await getCart()

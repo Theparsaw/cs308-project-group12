@@ -6,11 +6,13 @@ const app = require("../server");
 const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
+const Order = require("../models/Order");
 const { getJwtSecret } = require("../utils/jwt");
 
 const createdUserIds = [];
 const createdProductIds = [];
 const createdCartIds = [];
+const createdOrderIds = [];
 
 const createEmail = (label) => `security-${label}-${Date.now()}@example.com`;
 const createCartId = (label) => `security-cart-${label}-${Date.now()}`;
@@ -44,6 +46,9 @@ afterAll(async () => {
   }
   if (createdCartIds.length > 0) {
     await Cart.deleteMany({ cartId: { $in: createdCartIds } });
+  }
+  if (createdOrderIds.length > 0) {
+    await Order.deleteMany({ _id: { $in: createdOrderIds } });
   }
   if (createdUserIds.length > 0) {
     await User.deleteMany({ _id: { $in: createdUserIds } });
@@ -114,6 +119,59 @@ describe("Security and end-to-end integration", () => {
     const cartAfter = await Cart.findOne({ cartId }).lean();
     expect(stockAfter.quantityInStock).toBe(stockBefore.quantityInStock);
     expect(cartAfter.items).toHaveLength(1);
+  });
+
+  test("payment page blocks access when stock becomes unavailable before payment", async () => {
+    const registerRes = await registerCustomer("payment-stock-check");
+    const token = registerRes.body.token;
+    const cartId = createCartId("payment-stock-check");
+    createdCartIds.push(cartId);
+
+    const createProductRes = await request(app)
+      .post("/api/products")
+      .set("Authorization", `Bearer ${jwt.sign({ id: createdUserIds[0], role: "product_manager" }, getJwtSecret(), { expiresIn: "1h" })}`)
+      .send({
+        productId: `stock-check-${Date.now()}`,
+        categoryId: "cat-stock-check",
+        name: "Stock Check Product",
+        model: "Stock Guard",
+        serialNumber: `STOCK-CHECK-${Date.now()}`,
+        description: "Product used to validate payment page stock checks",
+        quantityInStock: 1,
+        price: 120,
+        warrantyStatus: "1 year",
+        distributorInfo: "Integration Distributor",
+      });
+
+    expect(createProductRes.statusCode).toBe(201);
+    createdProductIds.push(createProductRes.body.product.productId);
+
+    const addToCartRes = await request(app)
+      .post(`/api/cart/${cartId}/items`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ productId: createProductRes.body.product.productId, quantity: 1 });
+
+    expect(addToCartRes.statusCode).toBe(200);
+
+    const createOrderRes = await request(app)
+      .post(`/api/checkout/${cartId}/order`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(createOrderRes.statusCode).toBe(201);
+    createdOrderIds.push(createOrderRes.body.order.id);
+
+    await Product.updateOne(
+      { productId: createProductRes.body.product.productId },
+      { $set: { quantityInStock: 0 } }
+    );
+
+    const paymentPageRes = await request(app)
+      .get(`/api/payments/order/${createOrderRes.body.order.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(paymentPageRes.statusCode).toBe(400);
+    expect(paymentPageRes.body.message).toBe("Not enough stock for Stock Check Product");
+    expect(paymentPageRes.body.availableStock).toBe(0);
   });
 
   test("authorized full flow works end-to-end", async () => {
