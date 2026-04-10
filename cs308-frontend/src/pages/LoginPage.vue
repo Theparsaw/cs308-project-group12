@@ -58,6 +58,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { loginUser } from '../api/authApi'
+import { resetCartId } from '../api/cartApi'
 import { authStore } from '../store/auth'
 
 // Router lets us redirect the user after login
@@ -82,6 +83,7 @@ const handleLogin = async () => {
 
     // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
+    resetCartId()
 
     // Redirect based on role
     if (res.data.user.role === 'sales_manager') {

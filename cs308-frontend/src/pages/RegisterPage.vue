@@ -82,6 +82,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerUser } from '../api/authApi'
+import { resetCartId } from '../api/cartApi'
 import { authStore } from '../store/auth'
 
 // Router lets us redirect the user after registration
@@ -125,6 +126,7 @@ const handleRegister = async () => {
 
     // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
+    resetCartId()
 
     // Redirect to home page after successful registration
     router.push('/')

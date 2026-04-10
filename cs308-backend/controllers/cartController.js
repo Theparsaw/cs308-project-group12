@@ -34,12 +34,23 @@ const assertCartAccess = (cart, userId) => {
   }
 };
 
+const claimLegacyCartIfNeeded = async (cart, userId) => {
+  // Allow carts created before user ownership was added to be migrated forward.
+  if (!cart.userId) {
+    cart.userId = userId;
+    await cart.save();
+  }
+
+  return cart;
+};
+
 const findOrCreateCart = async (cartId, userId) => {
   let cart = await Cart.findOne({ cartId });
 
   if (!cart) {
     cart = await Cart.create({ cartId, userId, items: [], totalPrice: 0 });
   } else {
+    await claimLegacyCartIfNeeded(cart, userId);
     assertCartAccess(cart, userId);
   }
 
@@ -54,6 +65,7 @@ const getCart = asyncHandler(async (req, res) => {
     return res.status(200).json(getEmptyCartPayload(cartId));
   }
 
+  await claimLegacyCartIfNeeded(cart, req.user.id);
   assertCartAccess(cart, req.user.id);
   return res.status(200).json(serializeCart(cart));
 });
@@ -130,6 +142,7 @@ const updateCartItemQuantity = asyncHandler(async (req, res) => {
     throw new AppError("Cart not found", 404, "CART_NOT_FOUND");
   }
 
+  await claimLegacyCartIfNeeded(cart, req.user.id);
   assertCartAccess(cart, req.user.id);
   const item = cart.items.find((cartItem) => cartItem.productId === productId);
 
@@ -170,6 +183,7 @@ const removeCartItem = asyncHandler(async (req, res) => {
     throw new AppError("Cart not found", 404, "CART_NOT_FOUND");
   }
 
+  await claimLegacyCartIfNeeded(cart, req.user.id);
   assertCartAccess(cart, req.user.id);
   const itemExists = cart.items.some((item) => item.productId === productId);
 
@@ -194,6 +208,7 @@ const checkoutCart = asyncHandler(async (req, res) => {
     throw new AppError("Cart not found", 404, "CART_NOT_FOUND");
   }
 
+  await claimLegacyCartIfNeeded(cart, req.user.id);
   assertCartAccess(cart, req.user.id);
 
   if (cart.items.length === 0) {

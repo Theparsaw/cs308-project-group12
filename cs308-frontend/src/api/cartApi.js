@@ -23,6 +23,12 @@ export const getCartId = () => {
   return newCartId
 }
 
+export const resetCartId = () => {
+  const newCartId = createCartId()
+  localStorage.setItem(CART_ID_KEY, newCartId)
+  return newCartId
+}
+
 export const getCart = (cartId = getCartId()) => api.get(`/cart/${cartId}`)
 
 export const addItemToCart = (productId, quantity = 1, cartId = getCartId()) =>
