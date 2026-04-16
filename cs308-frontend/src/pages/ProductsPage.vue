@@ -193,24 +193,6 @@
               :getCategoryLabel="getCategoryLabel"
             />
 
-            <section class="grid md:grid-cols-3 gap-4 mb-10">
-              <div class="md:col-span-2 bg-orange-500 rounded-3xl p-8 text-white">
-                <p class="text-sm font-semibold mb-2">Featured Collection</p>
-                <h3 class="text-3xl font-bold mb-2">Upgrade your setup</h3>
-                <p class="text-orange-50">
-                  Discover premium laptops, accessories, audio gear, and more.
-                </p>
-              </div>
-
-              <div class="bg-white rounded-3xl p-6 border border-gray-200">
-                <p class="text-sm text-gray-500 mb-2">Store Highlight</p>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Fresh arrivals</h3>
-                <p class="text-gray-600 text-sm">
-                  New products and curated picks updated across categories.
-                </p>
-              </div>
-            </section>
-
             <ProductSection
               title="Laptops"
               :products="laptopProducts"
