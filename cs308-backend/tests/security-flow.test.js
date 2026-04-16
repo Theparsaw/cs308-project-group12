@@ -170,7 +170,7 @@ describe("Security and end-to-end integration", () => {
       .set("Authorization", `Bearer ${token}`);
 
     expect(paymentPageRes.statusCode).toBe(400);
-    expect(paymentPageRes.body.message).toBe("Not enough stock for Stock Check Product");
+    expect(paymentPageRes.body.message).toBe("Not enough stock for Stock Check Product Stock Guard");
     expect(paymentPageRes.body.availableStock).toBe(0);
   });
 

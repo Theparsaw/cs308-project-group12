@@ -135,9 +135,14 @@ describe("Review validation and integration flow", () => {
     expect(pendingListRes.statusCode).toBe(200);
     expect(pendingListRes.body.data).toEqual([]);
 
-    const approveRes = await request(app).patch(
-      `/api/moderation/reviews/${createRes.body.review._id}/approve`
-    );
+    const managerLoginRes = await request(app).post("/api/auth/login").send({
+  email: "salesmanager@store.com",
+  password: "sales123",
+});
+
+const approveRes = await request(app)
+  .patch(`/api/moderation/reviews/${createRes.body.review._id}/approve`)
+  .set("Authorization", `Bearer ${managerLoginRes.body.token}`);
 
     expect(approveRes.statusCode).toBe(200);
 

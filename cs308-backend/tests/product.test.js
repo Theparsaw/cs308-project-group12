@@ -34,7 +34,7 @@ describe("Product API Endpoints (safe, non-polluting tests)", () => {
     const res = await request(app).get("/api/products");
 
     expect(res.statusCode).toBe(200);
-    expect(res.body.length).toBe(20);
+    expect(res.body.length).toBe(50);
   });
 
   test("GET /api/products should return products with required camelCase fields", async () => {
@@ -182,4 +182,44 @@ describe("Product API Endpoints (safe, non-polluting tests)", () => {
     expect(res.statusCode).toBe(404);
     expect(res.body.message).toBe("Product not found");
   });
+  // GET /api/products?search=
+test("GET /api/products?search=Samsung should return only Samsung products", async () => {
+  const res = await request(app).get("/api/products?search=Samsung");
+
+  expect(res.statusCode).toBe(200);
+  expect(Array.isArray(res.body)).toBe(true);
+  expect(res.body.length).toBeGreaterThan(0);
+  // every result should have Samsung in name, model, or description
+  res.body.forEach((product) => {
+    const combined = `${product.name} ${product.model} ${product.description}`.toLowerCase();
+    expect(combined).toContain("samsung");
+  });
+});
+
+test("GET /api/products?search=mirrorless should return products with mirrorless in description", async () => {
+  const res = await request(app).get("/api/products?search=mirrorless");
+
+  expect(res.statusCode).toBe(200);
+  expect(Array.isArray(res.body)).toBe(true);
+  expect(res.body.length).toBeGreaterThan(0);
+  res.body.forEach((product) => {
+    const combined = `${product.name} ${product.model} ${product.description}`.toLowerCase();
+    expect(combined).toContain("mirrorless");
+  });
+});
+
+test("GET /api/products?search=SAMSUNG should work case-insensitively", async () => {
+  const res = await request(app).get("/api/products?search=SAMSUNG");
+
+  expect(res.statusCode).toBe(200);
+  expect(res.body.length).toBeGreaterThan(0);
+});
+
+test("GET /api/products?search= empty string should return all products", async () => {
+  const res = await request(app).get("/api/products?search=");
+
+  expect(res.statusCode).toBe(200);
+  expect(Array.isArray(res.body)).toBe(true);
+  expect(res.body.length).toBeGreaterThan(0);
+});
 });

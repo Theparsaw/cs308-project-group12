@@ -96,7 +96,17 @@ const getAllProducts = asyncHandler(async (req, res) => {
       },
     ]);
 
-    return res.status(200).json(products);
+    // If Atlas Search returned results, use them
+    // If it returned nothing, fall back to regex so description search still works
+    if (products.length > 0) {
+      return res.status(200).json(products);
+    }
+
+    // Fallback: regex search across all fields including description
+    const fallbackFilter = buildRegexFallbackFilter(search);
+    const fallbackResults = await Product.find(fallbackFilter).sort({ createdAt: -1 });
+    return res.status(200).json(fallbackResults);
+
   } catch (error) {
     // Safe fallback so search still works even if Atlas Search index
     // is not created yet or aggregation search is unavailable.
