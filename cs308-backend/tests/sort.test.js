@@ -1,8 +1,65 @@
 const request = require("supertest");
 const mongoose = require("mongoose");
 const app = require("../server");
+const Order = require("../models/Order");
+
+const popularityTestCartPrefix = `sort-test-cart-${Date.now()}`;
+
+beforeAll(async () => {
+  await Order.insertMany([
+    {
+      userId: "sort-test-user-1",
+      cartId: `${popularityTestCartPrefix}-1`,
+      items: [
+        {
+          productId: "p001",
+          name: "Apple",
+          unitPrice: 1299,
+          quantity: 5,
+        },
+      ],
+      totalPrice: 6495,
+      status: "paid",
+    },
+    {
+      userId: "sort-test-user-2",
+      cartId: `${popularityTestCartPrefix}-2`,
+      items: [
+        {
+          productId: "p001",
+          name: "Apple",
+          unitPrice: 1299,
+          quantity: 2,
+        },
+        {
+          productId: "p002",
+          name: "Samsung",
+          unitPrice: 999,
+          quantity: 3,
+        },
+      ],
+      totalPrice: 5595,
+      status: "paid",
+    },
+    {
+      userId: "sort-test-user-3",
+      cartId: `${popularityTestCartPrefix}-3`,
+      items: [
+        {
+          productId: "p002",
+          name: "Samsung",
+          unitPrice: 999,
+          quantity: 9,
+        },
+      ],
+      totalPrice: 8991,
+      status: "pending_payment",
+    },
+  ]);
+});
 
 afterAll(async () => {
+  await Order.deleteMany({ cartId: { $regex: `^${popularityTestCartPrefix}` } });
   await mongoose.connection.close();
 });
 
@@ -53,7 +110,7 @@ describe("Product Sorting API", () => {
   });
 
   // popularity
-  test("GET /api/products?sort=popularity should return products with avgRating and reviewCount", async () => {
+  test("GET /api/products?sort=popularity should return products with popularity", async () => {
     const res = await request(app).get("/api/products?sort=popularity");
 
     expect(res.statusCode).toBe(200);
@@ -61,20 +118,31 @@ describe("Product Sorting API", () => {
     expect(res.body.length).toBeGreaterThan(0);
 
     res.body.forEach((product) => {
-      expect(product).toHaveProperty("avgRating");
-      expect(product).toHaveProperty("reviewCount");
+      expect(product).toHaveProperty("popularity");
+      expect(typeof product.popularity).toBe("number");
     });
   });
 
-  test("GET /api/products?sort=popularity should have highest rated products first", async () => {
+  test("GET /api/products?sort=popularity should sort by sold quantity from paid orders only", async () => {
     const res = await request(app).get("/api/products?sort=popularity");
 
     expect(res.statusCode).toBe(200);
+    expect(res.body[0].productId).toBe("p001");
+    expect(res.body[0].popularity).toBe(7);
 
-    // Each product avgRating should be greater than or equal to the next one
     for (let i = 0; i < res.body.length - 1; i++) {
-      expect(res.body[i].avgRating).toBeGreaterThanOrEqual(res.body[i + 1].avgRating);
+      expect(res.body[i].popularity).toBeGreaterThanOrEqual(res.body[i + 1].popularity);
     }
+  });
+
+  test("GET /api/products should attach popularity values to product responses", async () => {
+    const res = await request(app).get("/api/products");
+
+    expect(res.statusCode).toBe(200);
+
+    const product = res.body.find((item) => item.productId === "p001");
+    expect(product).toBeDefined();
+    expect(product.popularity).toBe(7);
   });
 
   // invalid sort
@@ -115,6 +183,15 @@ describe("Product Sorting API", () => {
     for (let i = 0; i < res.body.length - 1; i++) {
       expect(res.body[i].price).toBeLessThanOrEqual(res.body[i + 1].price);
     }
+  });
+
+  test("GET /api/products?search=Apple&sort=popularity should keep popularity sorting with search", async () => {
+    const res = await request(app).get("/api/products?search=Apple&sort=popularity");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0].productId).toBe("p001");
+    expect(res.body[0].popularity).toBe(7);
   });
 
 });
