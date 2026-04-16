@@ -165,7 +165,17 @@ const filteredProducts = computed(() => {
   return products.value.filter(product => product.categoryId === selectedCategory.value)
 })
 
-const popularProducts = computed(() => products.value.slice(0, 8))
+const popularProducts = computed(() =>
+  [...products.value]
+    .sort((left, right) => {
+      if ((right.popularity ?? 0) !== (left.popularity ?? 0)) {
+        return (right.popularity ?? 0) - (left.popularity ?? 0)
+      }
+
+      return new Date(right.createdAt ?? 0) - new Date(left.createdAt ?? 0)
+    })
+    .slice(0, 8)
+)
 
 const laptopProducts = computed(() =>
   products.value.filter(product => product.categoryId === 'laptops')

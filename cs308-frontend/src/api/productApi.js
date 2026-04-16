@@ -36,10 +36,19 @@ api.interceptors.response.use(
   }
 )
 
-export const getProducts = (search = '') =>
-  api.get('/products', {
-    params: search && search.trim() ? { search: search.trim() } : {},
-  })
+export const getProducts = (search = '', sort = '') => {
+  const params = {}
+
+  if (search && search.trim()) {
+    params.search = search.trim()
+  }
+
+  if (sort && sort.trim()) {
+    params.sort = sort.trim()
+  }
+
+  return api.get('/products', { params })
+}
 
 export const getProductById = (id) => api.get(`/products/${id}`)
 export const createProduct = (data) => api.post('/products', data)

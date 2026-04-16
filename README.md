@@ -28,6 +28,8 @@ Notes:
 - Do not commit .env 
 - node_modules are ignored
 - API base route: /api/products
+- Product popularity is calculated from paid orders by summing sold item quantities per product
+- Product responses include a `popularity` field and `GET /api/products?sort=popularity` sorts by that value
 
 See API.md for endpoint details.
 

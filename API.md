@@ -8,6 +8,12 @@ http://localhost:5001/api
 - GET /api/products
 Returns all products
 
+- Query parameters:
+  - `search`: optional text search across product fields
+  - `sort`: optional sort mode: `price_asc`, `price_desc`, or `popularity`
+  - `popularity` is defined as the total quantity sold for that product across orders whose status is `paid`
+  - every product response includes a numeric `popularity` field
+
 - GET /api/products/:id
 Returns a single product by productId
 

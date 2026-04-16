@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const Order = require("../models/Order");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
 
@@ -28,6 +29,57 @@ const buildRegexFallbackFilter = (search) => {
   };
 };
 
+const buildPopularityStages = () => [
+  {
+    $lookup: {
+      from: Order.collection.name,
+      let: { currentProductId: "$productId" },
+      pipeline: [
+        { $match: { status: "paid" } },
+        { $unwind: "$items" },
+        {
+          $match: {
+            $expr: {
+              $eq: ["$items.productId", "$$currentProductId"],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            soldQuantity: { $sum: "$items.quantity" },
+          },
+        },
+      ],
+      as: "popularityStats",
+    },
+  },
+  {
+    $addFields: {
+      popularity: {
+        $ifNull: [{ $first: "$popularityStats.soldQuantity" }, 0],
+      },
+    },
+  },
+  {
+    $project: {
+      popularityStats: 0,
+    },
+  },
+];
+
+const buildSortStage = (sort, hasSearchScore = false) => {
+  if (sort === "price_asc") return { $sort: { price: 1, createdAt: -1 } };
+  if (sort === "price_desc") return { $sort: { price: -1, createdAt: -1 } };
+  if (sort === "popularity") {
+    return { $sort: { popularity: -1, createdAt: -1 } };
+  }
+
+  return hasSearchScore
+    ? { $sort: { score: -1, createdAt: -1 } }
+    : { $sort: { createdAt: -1 } };
+};
+
 const getAllProducts = asyncHandler(async (req, res) => {
   const rawSearch = req.query.search;
   const search = typeof rawSearch === "string" ? rawSearch.trim() : "";
@@ -37,50 +89,12 @@ const getAllProducts = asyncHandler(async (req, res) => {
   const rawSort = req.query.sort;
   const sort = validSortOptions.includes(rawSort) ? rawSort : null;
 
-  // Build MongoDB sort object for price sorting
-  let mongoSort = { createdAt: -1 }; // default: newest first
-  if (sort === "price_asc") mongoSort = { price: 1 };
-  if (sort === "price_desc") mongoSort = { price: -1 };
-
-  // Popularity sort: join with reviews collection and sort by average rating
-  if (sort === "popularity") {
-    const matchFilter = search ? buildRegexFallbackFilter(search) : {};
-    const products = await Product.aggregate([
-      { $match: matchFilter },
-      {
-        // Join with reviews collection
-        $lookup: {
-          from: "reviews",
-          localField: "productId",
-          foreignField: "productId",
-          pipeline: [{ $match: { status: "approved" } }],
-          as: "reviews",
-        },
-      },
-      {
-        // Calculate average rating and review count
-        $addFields: {
-          avgRating: {
-            $cond: {
-              if: { $gt: [{ $size: "$reviews" }, 0] },
-              then: { $avg: "$reviews.rating" },
-              else: 0,
-            },
-          },
-          reviewCount: { $size: "$reviews" },
-        },
-      },
-      // Sort by avgRating descending, then reviewCount, then newest
-      { $sort: { avgRating: -1, reviewCount: -1, createdAt: -1 } },
-      // Remove the reviews array from the response
-      { $project: { reviews: 0 } },
-    ]);
-    return res.status(200).json(products);
-  }
-
   // No search: return all products with sort applied
   if (!search) {
-    const products = await Product.find({}).sort(mongoSort);
+    const products = await Product.aggregate([
+      ...buildPopularityStages(),
+      buildSortStage(sort),
+    ]);
     return res.status(200).json(products);
   }
 
@@ -119,8 +133,8 @@ const getAllProducts = asyncHandler(async (req, res) => {
         },
       },
       { $addFields: { score: { $meta: "searchScore" } } },
-      // Apply price sort if requested, otherwise sort by search score
-      { $sort: sort ? mongoSort : { score: -1, createdAt: -1 } },
+      ...buildPopularityStages(),
+      buildSortStage(sort, true),
     ]);
 
     if (atlasResults.length > 0) {
@@ -129,19 +143,30 @@ const getAllProducts = asyncHandler(async (req, res) => {
 
     // Fallback: regex search with sort applied
     const fallbackFilter = buildRegexFallbackFilter(search);
-    const fallbackResults = await Product.find(fallbackFilter).sort(mongoSort);
+    const fallbackResults = await Product.aggregate([
+      { $match: fallbackFilter },
+      ...buildPopularityStages(),
+      buildSortStage(sort),
+    ]);
     return res.status(200).json(fallbackResults);
 
   } catch (error) {
     // Safe fallback if Atlas Search is unavailable
     const fallbackFilter = buildRegexFallbackFilter(search);
-    const products = await Product.find(fallbackFilter).sort(mongoSort);
+    const products = await Product.aggregate([
+      { $match: fallbackFilter },
+      ...buildPopularityStages(),
+      buildSortStage(sort),
+    ]);
     return res.status(200).json(products);
   }
 });
 
 const getProductById = asyncHandler(async (req, res) => {
-  const product = await Product.findOne({ productId: req.params.id });
+  const [product] = await Product.aggregate([
+    { $match: { productId: req.params.id } },
+    ...buildPopularityStages(),
+  ]);
 
   if (!product) {
     throw new AppError("Product not found", 404, "PRODUCT_NOT_FOUND");
