@@ -1,201 +1,128 @@
 <template>
-  <div class="relative w-full overflow-hidden rounded-3xl mb-8" style="height: 420px;">
-    
-    <!-- Three.js canvas renders here -->
+  <div
+    class="relative w-full overflow-hidden"
+    style="height: 100vh; background: #0a0a14;"
+  >
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
 
-    <!-- Text overlay on top of the 3D scene -->
-    <div class="absolute inset-0 flex flex-col justify-center px-12 pointer-events-none">
-      <p class="text-sm font-semibold text-orange-300 mb-3 tracking-widest uppercase">
+    <div class="absolute inset-0 flex flex-col justify-center items-end px-12 pointer-events-none text-right">
+      <p class="text-sm font-semibold text-orange-400 mb-3 tracking-widest uppercase">
         Welcome to CS308 Store
       </p>
       <h1 class="text-5xl font-bold text-white mb-4 leading-tight drop-shadow-lg">
-        Discover Premium<br/>Products
+        Discover Premium<br />Products
       </h1>
       <p class="text-gray-300 text-lg max-w-md">
         Browse our curated collection of top-quality products at unbeatable prices.
       </p>
     </div>
-
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import * as THREE from 'three'
 
 const canvasRef = ref(null)
+let animationId, ctx, w, h
+const particles = []
+const mouse = { x: -1000, y: -1000 }
 
-let renderer, scene, camera, animationId
-const shapes = []
-const mouse = { x: 0, y: 0 }
+const COUNT = 90
+const CONNECT_DIST = 130
+const MOUSE_RADIUS = 140
+
+class Particle {
+  constructor() {
+    this.x = Math.random() * w
+    this.y = Math.random() * h
+    this.vx = (Math.random() - 0.5) * 0.6
+    this.vy = (Math.random() - 0.5) * 0.6
+    this.r = Math.random() * 2.2 + 0.8
+    this.opacity = Math.random() * 0.5 + 0.5
+    const palette = ['255,102,0', '255,145,0', '255,175,50', '230,75,0', '255,200,80']
+    this.color = palette[Math.floor(Math.random() * palette.length)]
+  }
+
+  update() {
+    const dx = this.x - mouse.x
+    const dy = this.y - mouse.y
+    const d = Math.sqrt(dx * dx + dy * dy)
+    if (d < MOUSE_RADIUS && d > 0) {
+      const f = (MOUSE_RADIUS - d) / MOUSE_RADIUS
+      this.x += (dx / d) * f * 2.5
+      this.y += (dy / d) * f * 2.5
+    }
+    this.x += this.vx
+    this.y += this.vy
+    if (this.x < 0 || this.x > w) this.vx *= -1
+    if (this.y < 0 || this.y > h) this.vy *= -1
+    this.x = Math.max(0, Math.min(w, this.x))
+    this.y = Math.max(0, Math.min(h, this.y))
+  }
+
+  draw() {
+    ctx.beginPath()
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(${this.color},${this.opacity})`
+    ctx.fill()
+  }
+}
 
 const init = () => {
   const canvas = canvasRef.value
-  const width = canvas.clientWidth
-  const height = canvas.clientHeight
-
-  // ── Scene ────────────────────────────────────────────────────────────────
-  scene = new THREE.Scene()
-
-  // Dark gradient background color
-  scene.background = new THREE.Color(0x0f0f1a)
-
-  // ── Camera ───────────────────────────────────────────────────────────────
-  camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100)
-  camera.position.z = 10
-
-  // ── Renderer ─────────────────────────────────────────────────────────────
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-  renderer.setSize(width, height)
-  renderer.setPixelRatio(window.devicePixelRatio)
-
-  // ── Lighting ─────────────────────────────────────────────────────────────
-  // Ambient light gives overall brightness
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
-  scene.add(ambientLight)
-
-  // Orange point light from the right — gives warm glow on shapes
-  const orangeLight = new THREE.PointLight(0xff6600, 3, 30)
-  orangeLight.position.set(6, 4, 5)
-  scene.add(orangeLight)
-
-  // Blue/purple point light from the left — gives cool contrast
-  const blueLight = new THREE.PointLight(0x4444ff, 2, 30)
-  blueLight.position.set(-6, -4, 5)
-  scene.add(blueLight)
-
-  // ── Shapes ───────────────────────────────────────────────────────────────
-  // Define different geometries for visual variety
-  const geometries = [
-    new THREE.IcosahedronGeometry(0.8, 0),   // spiky ball
-    new THREE.OctahedronGeometry(0.7, 0),     // diamond shape
-    new THREE.TetrahedronGeometry(0.7, 0),    // pyramid
-    new THREE.IcosahedronGeometry(0.5, 0),
-    new THREE.OctahedronGeometry(0.6, 0),
-    new THREE.TetrahedronGeometry(0.9, 0),
-    new THREE.IcosahedronGeometry(0.4, 0),
-    new THREE.OctahedronGeometry(0.8, 0),
-  ]
-
-  // Orange/gold color palette to match the store theme
-  const colors = [
-    0xff6600, // orange
-    0xff8c00, // dark orange
-    0xffa500, // amber
-    0xff4500, // red orange
-    0xffb347, // light orange
-    0xe85d04, // deep orange
-    0xffd700, // gold
-    0xff7c43, // salmon orange
-  ]
-
-  geometries.forEach((geometry, i) => {
-    const material = new THREE.MeshPhongMaterial({
-      color: colors[i],
-      shininess: 100,
-      specular: new THREE.Color(0xffffff),
-      transparent: true,
-      opacity: 0.85,
-      wireframe: i % 3 === 0, // every 3rd shape is wireframe for variety
-    })
-
-    const mesh = new THREE.Mesh(geometry, material)
-
-    // Spread shapes randomly across the scene
-    mesh.position.set(
-      (Math.random() - 0.5) * 18,
-      (Math.random() - 0.5) * 10,
-      (Math.random() - 0.5) * 6
-    )
-
-    // Random initial rotation
-    mesh.rotation.set(
-      Math.random() * Math.PI,
-      Math.random() * Math.PI,
-      Math.random() * Math.PI
-    )
-
-    // Store random speed values for animation
-    mesh.userData = {
-      rotationSpeed: {
-        x: (Math.random() - 0.5) * 0.01,
-        y: (Math.random() - 0.5) * 0.01,
-        z: (Math.random() - 0.5) * 0.01,
-      },
-      floatSpeed: Math.random() * 0.001 + 0.0005,
-      floatOffset: Math.random() * Math.PI * 2,
-    }
-
-    scene.add(mesh)
-    shapes.push(mesh)
-  })
-
-  // ── Mouse tracking ───────────────────────────────────────────────────────
-  window.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('resize', onResize)
-
-  // Start animation loop
+  ctx = canvas.getContext('2d')
+  w = canvas.width = canvas.clientWidth
+  h = canvas.height = canvas.clientHeight
+  particles.length = 0
+  for (let i = 0; i < COUNT; i++) particles.push(new Particle())
   animate()
 }
 
-// Track mouse position and convert to normalized -1 to 1 range
-const onMouseMove = (event) => {
-  mouse.x = (event.clientX / window.innerWidth - 0.5) * 2
-  mouse.y = -(event.clientY / window.innerHeight - 0.5) * 2
-}
-
-// Handle window resize so the canvas stays correct
-const onResize = () => {
-  if (!canvasRef.value || !renderer || !camera) return
-  const width = canvasRef.value.clientWidth
-  const height = canvasRef.value.clientHeight
-  renderer.setSize(width, height)
-  camera.aspect = width / height
-  camera.updateProjectionMatrix()
-}
-
-// Animation loop — runs every frame
 const animate = () => {
   animationId = requestAnimationFrame(animate)
+  ctx.fillStyle = 'rgba(10,10,20,0.18)'
+  ctx.fillRect(0, 0, w, h)
 
-  const time = Date.now() * 0.001
-
-  // Rotate and float each shape
-  shapes.forEach((mesh) => {
-    const { rotationSpeed, floatSpeed, floatOffset } = mesh.userData
-
-    // Rotate the shape on all axes
-    mesh.rotation.x += rotationSpeed.x
-    mesh.rotation.y += rotationSpeed.y
-    mesh.rotation.z += rotationSpeed.z
-
-    // Gentle floating up and down using a sine wave
-    mesh.position.y += Math.sin(time * floatSpeed * 10 + floatOffset) * 0.003
-  })
-
-  // Slowly move the camera based on mouse position — gives parallax feel
-  camera.position.x += (mouse.x * 1.5 - camera.position.x) * 0.03
-  camera.position.y += (mouse.y * 1.0 - camera.position.y) * 0.03
-  camera.lookAt(scene.position)
-
-  renderer.render(scene, camera)
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x
+      const dy = particles[i].y - particles[j].y
+      const d = Math.sqrt(dx * dx + dy * dy)
+      if (d < CONNECT_DIST) {
+        ctx.beginPath()
+        ctx.moveTo(particles[i].x, particles[i].y)
+        ctx.lineTo(particles[j].x, particles[j].y)
+        ctx.strokeStyle = `rgba(255,120,0,${(1 - d / CONNECT_DIST) * 0.45})`
+        ctx.lineWidth = 0.8
+        ctx.stroke()
+      }
+    }
+    particles[i].update()
+    particles[i].draw()
+  }
 }
 
-// Start everything when the component mounts
+const onMove = (e) => {
+  const rect = canvasRef.value.getBoundingClientRect()
+  mouse.x = e.clientX - rect.left
+  mouse.y = e.clientY - rect.top
+}
+const onLeave = () => { mouse.x = -1000; mouse.y = -1000 }
+const onResize = () => {
+  if (!canvasRef.value) return
+  w = canvasRef.value.width = canvasRef.value.clientWidth
+  h = canvasRef.value.height = canvasRef.value.clientHeight
+}
+
 onMounted(() => {
   init()
+  canvasRef.value.addEventListener('mousemove', onMove)
+  canvasRef.value.addEventListener('mouseleave', onLeave)
+  window.addEventListener('resize', onResize)
 })
 
-// Clean up when the component is destroyed — prevents memory leaks
 onUnmounted(() => {
   cancelAnimationFrame(animationId)
-  window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('resize', onResize)
-  renderer?.dispose()
-  shapes.forEach(mesh => {
-    mesh.geometry.dispose()
-    mesh.material.dispose()
-  })
 })
 </script>
