@@ -1,75 +1,57 @@
 <template>
   <div class="bg-stone-50">
-    <section class="relative overflow-hidden bg-stone-950">
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.22),transparent_28%),linear-gradient(120deg,rgba(12,10,9,0.72),rgba(12,10,9,0.1)_55%)]" />
-      <div class="relative mx-auto grid min-h-[38rem] max-w-7xl items-center gap-10 px-4 py-12 md:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
-        <div class="max-w-xl">
-          <p class="mb-4 text-sm font-semibold uppercase tracking-[0.35em] text-orange-300">
-            CS308 Store
-          </p>
-          <h1 class="mb-5 text-4xl font-bold leading-tight text-white md:text-6xl">
-            Tech essentials curated for people who want fast, reliable upgrades.
-          </h1>
-          <p class="mb-8 max-w-lg text-base leading-7 text-stone-200 md:text-lg">
-            Shop premium devices, gaming gear, and audio picks with a cleaner storefront and
-            clearer path to what matters most.
-          </p>
-          <button
-            type="button"
-            class="inline-flex items-center rounded-full bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-600"
-            @click="scrollToProducts"
-          >
-            Shop now
-          </button>
-        </div>
-
+    <section class="relative overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f5f5f4_36%,#1c1917_36%,#0c0a09_100%)]">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.24),transparent_24%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.12),transparent_22%)]" />
+      <div class="relative mx-auto max-w-7xl px-4 py-10 md:px-6 lg:py-14">
         <div
           ref="heroPanelRef"
-          class="group relative min-h-[22rem] overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(145deg,#111827,#0f172a_48%,#172554)] shadow-2xl transition duration-150 md:min-h-[30rem]"
+          class="group relative min-h-[38rem] overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,#292524_0%,#1c1917_42%,#7c2d12_100%)] shadow-2xl transition duration-150 md:min-h-[42rem]"
           :style="heroPanelStyle"
           @mousemove="updateHeroGlow"
           @mouseleave="resetHeroGlow"
         >
-          <div class="absolute -inset-6 rounded-[2.5rem] bg-orange-500/20 blur-3xl" />
-          <div class="absolute -left-20 top-8 h-52 w-52 rounded-full bg-cyan-400/12 blur-3xl" />
-          <div class="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-orange-500/14 blur-3xl" />
+          <div class="absolute -inset-6 rounded-[2.5rem] bg-orange-500/18 blur-3xl" />
+          <div class="absolute -left-16 top-10 h-72 w-72 rounded-full bg-amber-300/12 blur-3xl" />
+          <div class="absolute bottom-0 right-0 h-[26rem] w-[26rem] rounded-full bg-orange-500/16 blur-3xl" />
+          <div class="absolute left-1/3 top-1/4 h-80 w-80 rounded-full bg-stone-100/6 blur-3xl" />
           <div
             class="pointer-events-none absolute inset-0 transition duration-200"
             :style="heroGlowStyle"
           />
-          <div class="pointer-events-none absolute inset-0 bg-gradient-to-tr from-orange-500/16 via-transparent to-cyan-300/10" />
-          <div class="relative z-10 flex h-full flex-col justify-between p-6 md:p-8">
-            <div class="flex items-start justify-between gap-4">
-              <div class="max-w-sm">
-                <p class="mb-2 text-xs font-semibold uppercase tracking-[0.35em] text-cyan-200">
-                  Interactive picks
-                </p>
-                <h2 class="text-2xl font-bold text-white md:text-4xl">
-                  Built around the brands people actually search for.
-                </h2>
-              </div>
+          <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(251,146,60,0.16),transparent_34%,rgba(255,255,255,0.05)_60%,rgba(251,146,60,0.12)_100%)]" />
+          <div class="relative z-10 flex min-h-[38rem] flex-col justify-between p-8 md:min-h-[42rem] md:p-10 lg:p-12">
+            <div class="max-w-2xl">
+              <p class="mb-4 text-sm font-semibold uppercase tracking-[0.35em] text-orange-300">
+                CS308 Store
+              </p>
+              <h1 class="mb-5 text-4xl font-bold leading-tight text-white md:text-6xl">
+                Tech essentials curated for people who want fast, reliable upgrades.
+              </h1>
+              <p class="mb-8 max-w-xl text-base leading-7 text-stone-200 md:text-lg">
+                Shop premium devices, gaming gear, and audio picks with a cleaner storefront and
+                clearer path to what matters most.
+              </p>
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-600"
+                @click="scrollToProducts"
+              >
+                Shop now
+              </button>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2">
-              <div
-                v-for="logo in heroLogos"
-                :key="logo.name"
-                class="rounded-[1.5rem] border border-white/10 bg-black/20 p-0 backdrop-blur-sm transition duration-300 group-hover:-translate-y-1"
-              >
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between gap-4 rounded-[1.5rem] p-5 text-left transition hover:bg-white/6 focus:outline-none focus:ring-2 focus:ring-orange-400/70"
-                  @click="applyBrandFilter(logo.brand)"
-                >
-                  <div>
-                    <p class="text-xs uppercase tracking-[0.35em] text-slate-400">{{ logo.category }}</p>
-                    <div class="mt-3 flex items-center gap-3">
-                      <span class="text-2xl font-semibold tracking-[0.2em] text-white md:text-3xl">
-                        {{ logo.name }}
-                      </span>
-                    </div>
-                  </div>
-                </button>
+            <div class="grid gap-4 md:grid-cols-3">
+              <div class="rounded-[1.5rem] border border-white/10 bg-black/16 p-5 backdrop-blur-sm">
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Curated tech</p>
+                <p class="mt-3 text-lg font-semibold text-white">Premium hardware across your daily setup.</p>
+              </div>
+              <div class="rounded-[1.5rem] border border-white/10 bg-black/16 p-5 backdrop-blur-sm">
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Interactive surface</p>
+                <p class="mt-3 text-lg font-semibold text-white">The entire hero now responds to cursor movement.</p>
+              </div>
+              <div class="rounded-[1.5rem] border border-white/10 bg-black/16 p-5 backdrop-blur-sm">
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Faster entry</p>
+                <p class="mt-3 text-lg font-semibold text-white">Users land directly into shopping without extra blocks.</p>
               </div>
             </div>
           </div>
@@ -97,16 +79,6 @@
     </section>
 
     <div id="products-section" class="max-w-7xl mx-auto px-4 py-6 md:px-6">
-      <div v-if="activeBrand" class="mb-4 flex flex-wrap items-center gap-3 px-2">
-        <p class="text-sm text-gray-700">
-          Brand filter:
-          <span class="font-semibold uppercase tracking-[0.2em] text-orange-600">{{ activeBrand }}</span>
-        </p>
-        <button @click="clearBrandFilter" class="text-sm text-orange-600 hover:underline">
-          Show all brands
-        </button>
-      </div>
-
       <div v-if="isSearching" class="flex items-center gap-3 flex-wrap mb-4 px-2">
         <p class="text-sm text-gray-700">
           Showing results for:
@@ -188,7 +160,7 @@
 
           <template v-else>
             <ProductSection
-              :title="activeBrand ? `${activeBrand} Products` : 'Popular Products'"
+              title="Popular Products"
               :products="popularProducts"
               :getCategoryLabel="getCategoryLabel"
             />
@@ -241,13 +213,6 @@ const heroGlow = ref({
   rotateY: 0
 })
 
-const heroLogos = [
-  { name: 'APPLE', brand: 'Apple', category: 'Mobile' },
-  { name: 'SAMSUNG', brand: 'Samsung', category: 'Displays' },
-  { name: 'SONY', brand: 'Sony', category: 'Audio' },
-  { name: 'ASUS', brand: 'ASUS', category: 'Gaming' }
-]
-
 const trustItems = [
   {
     title: 'Fast shipping',
@@ -291,10 +256,6 @@ const activeSearch = computed(() =>
   typeof route.query.search === 'string' ? route.query.search.trim() : ''
 )
 
-const activeBrand = computed(() =>
-  typeof route.query.brand === 'string' ? route.query.brand.trim() : ''
-)
-
 const isSearching = computed(() => activeSearch.value.length > 0)
 
 const categoryMap = computed(() => {
@@ -306,18 +267,13 @@ const uniqueCategories = computed(() => {
   return Array.from(ids).filter(Boolean)
 })
 
-const brandFilteredProducts = computed(() => {
-  if (!activeBrand.value) return products.value
-  return products.value.filter(product => product.name?.toLowerCase() === activeBrand.value.toLowerCase())
-})
-
 const filteredProducts = computed(() => {
-  if (!selectedCategory.value) return brandFilteredProducts.value
-  return brandFilteredProducts.value.filter(product => product.categoryId === selectedCategory.value)
+  if (!selectedCategory.value) return products.value
+  return products.value.filter(product => product.categoryId === selectedCategory.value)
 })
 
 const popularProducts = computed(() =>
-  [...brandFilteredProducts.value]
+  [...products.value]
     .sort((left, right) => {
       if ((right.popularity ?? 0) !== (left.popularity ?? 0)) {
         return (right.popularity ?? 0) - (left.popularity ?? 0)
@@ -329,15 +285,15 @@ const popularProducts = computed(() =>
 )
 
 const laptopProducts = computed(() =>
-  brandFilteredProducts.value.filter(product => product.categoryId === 'laptops')
+  products.value.filter(product => product.categoryId === 'laptops')
 )
 
 const audioProducts = computed(() =>
-  brandFilteredProducts.value.filter(product => product.categoryId === 'audio')
+  products.value.filter(product => product.categoryId === 'audio')
 )
 
 const gamingProducts = computed(() =>
-  brandFilteredProducts.value.filter(product => product.categoryId === 'gaming')
+  products.value.filter(product => product.categoryId === 'gaming')
 )
 
 const getCategoryLabel = (categoryId) => {
@@ -361,31 +317,7 @@ const loadProducts = async () => {
 
 const clearSearch = () => {
   selectedCategory.value = ''
-  router.push({
-    path: '/',
-    query: activeBrand.value ? { brand: activeBrand.value } : {}
-  })
-}
-
-const applyBrandFilter = (brand) => {
-  selectedCategory.value = ''
-  router.push({
-    path: '/',
-    query: {
-      ...(activeSearch.value ? { search: activeSearch.value } : {}),
-      brand
-    }
-  })
-
-  scrollToProducts()
-}
-
-const clearBrandFilter = () => {
-  selectedCategory.value = ''
-  router.push({
-    path: '/',
-    query: activeSearch.value ? { search: activeSearch.value } : {}
-  })
+  router.push({ path: '/', query: {} })
 }
 
 const updateHeroGlow = (event) => {
@@ -413,16 +345,16 @@ const resetHeroGlow = () => {
 
 const heroPanelStyle = computed(() => ({
   transform: `perspective(1400px) rotateX(${heroGlow.value.rotateX}deg) rotateY(${heroGlow.value.rotateY}deg)`,
-  boxShadow: `0 24px 64px rgba(15, 23, 42, 0.36), 0 0 34px rgba(251, 146, 60, ${0.05 + heroGlow.value.opacity * 0.08})`
+  boxShadow: `0 28px 80px rgba(28, 25, 23, 0.34), 0 0 54px rgba(251, 146, 60, ${0.08 + heroGlow.value.opacity * 0.1})`
 }))
 
 const heroGlowStyle = computed(() => ({
   background: `
     radial-gradient(circle at ${heroGlow.value.x}% ${heroGlow.value.y}%,
-    rgba(251, 146, 60, ${0.34 * heroGlow.value.opacity}) 0%,
-    rgba(56, 189, 248, ${0.18 * heroGlow.value.opacity}) 12%,
-    rgba(168, 85, 247, ${0.08 * heroGlow.value.opacity}) 22%,
-    rgba(15, 23, 42, 0) 34%)
+    rgba(251, 146, 60, ${0.3 * heroGlow.value.opacity}) 0%,
+    rgba(253, 186, 116, ${0.2 * heroGlow.value.opacity}) 16%,
+    rgba(255, 237, 213, ${0.1 * heroGlow.value.opacity}) 30%,
+    rgba(28, 25, 23, 0) 48%)
   `
 }))
 
