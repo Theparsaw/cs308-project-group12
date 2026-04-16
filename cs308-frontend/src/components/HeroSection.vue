@@ -1,20 +1,67 @@
 <template>
   <div
-    class="relative w-full overflow-hidden"
-    style="height: 100vh; background: #0a0a14;"
+    ref="sectionRef"
+    class="relative w-full overflow-hidden border-t border-slate-800 bg-slate-950"
+    style="min-height: 36rem;"
+    @mousemove="onMove"
+    @mouseleave="onLeave"
   >
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
 
-    <div class="absolute inset-0 flex flex-col justify-center items-end px-12 pointer-events-none text-right">
-      <p class="text-sm font-semibold text-orange-400 mb-3 tracking-widest uppercase">
-        Welcome to CS308 Store
-      </p>
-      <h1 class="text-5xl font-bold text-white mb-4 leading-tight drop-shadow-lg">
-        Discover Premium<br />Products
-      </h1>
-      <p class="text-gray-300 text-lg max-w-md">
-        Browse our curated collection of top-quality products at unbeatable prices.
-      </p>
+    <div class="absolute inset-0 bg-slate-950/55" />
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.22),transparent_30%)]" />
+
+    <div class="relative z-10 mx-auto flex min-h-[36rem] max-w-7xl flex-col justify-between px-4 py-10 md:px-6 lg:px-8">
+      <div class="grid gap-8 pt-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+        <div class="max-w-2xl">
+          <p class="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-orange-300">
+            Stay Connected
+          </p>
+          <h2 class="mb-4 text-3xl font-bold leading-tight text-white md:text-5xl">
+            Real support, fast answers, and a footer that stays alive under your cursor.
+          </h2>
+          <p class="max-w-xl text-sm leading-7 text-slate-200 md:text-base">
+            Reach out for order help, technical questions, shipping issues, or business requests.
+            The interactive particle field remains fully live across the entire bottom section.
+          </p>
+        </div>
+
+        <div class="mt-6 rounded-[2rem] border border-white/12 bg-black/20 p-5 backdrop-blur-md lg:mt-16">
+          <h3 class="mb-2 text-lg font-semibold text-white">Contact support</h3>
+          <p class="mb-5 max-w-md text-sm text-slate-200">
+            Our team is available for product questions, returns, account issues, and warranty support.
+          </p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <a
+              href="mailto:support@cs308store.com"
+              class="rounded-2xl border border-white/12 bg-slate-900/70 px-4 py-3 text-sm text-white transition hover:border-orange-300/60"
+            >
+              support@cs308store.com
+            </a>
+            <a
+              href="tel:+900000000000"
+              class="rounded-2xl border border-white/12 bg-slate-900/70 px-4 py-3 text-sm text-white transition hover:border-orange-300/60"
+            >
+              +90 (000) 000 00 00
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-4 pt-10 md:grid-cols-3">
+        <div class="rounded-[1.5rem] border border-white/12 bg-white/8 p-4 backdrop-blur-sm">
+          <p class="mb-1 text-xs uppercase tracking-[0.3em] text-orange-200">Help desk</p>
+          <p class="text-sm text-white">Order updates, refund questions, and warranty support.</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-white/12 bg-white/8 p-4 backdrop-blur-sm">
+          <p class="mb-1 text-xs uppercase tracking-[0.3em] text-orange-200">Business</p>
+          <p class="text-sm text-white">Bulk orders, reseller contact, and collaboration requests.</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-white/12 bg-white/8 p-4 backdrop-blur-sm">
+          <p class="mb-1 text-xs uppercase tracking-[0.3em] text-orange-200">Availability</p>
+          <p class="text-sm text-white">Responsive support flow with a live, interactive footer backdrop.</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -23,6 +70,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const canvasRef = ref(null)
+const sectionRef = ref(null)
 let animationId, ctx, w, h
 const particles = []
 const mouse = { x: -1000, y: -1000 }
@@ -103,7 +151,8 @@ const animate = () => {
 }
 
 const onMove = (e) => {
-  const rect = canvasRef.value.getBoundingClientRect()
+  const rect = sectionRef.value?.getBoundingClientRect()
+  if (!rect) return
   mouse.x = e.clientX - rect.left
   mouse.y = e.clientY - rect.top
 }
@@ -116,8 +165,6 @@ const onResize = () => {
 
 onMounted(() => {
   init()
-  canvasRef.value.addEventListener('mousemove', onMove)
-  canvasRef.value.addEventListener('mouseleave', onLeave)
   window.addEventListener('resize', onResize)
 })
 
