@@ -1,6 +1,6 @@
 <template>
   <div class="bg-stone-50">
-    <section class="relative overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f5f5f4_36%,#1c1917_36%,#0c0a09_100%)]">
+    <section v-if="!isSearching" class="relative overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f5f5f4_36%,#1c1917_36%,#0c0a09_100%)]">
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.24),transparent_24%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.12),transparent_22%)]" />
       <div class="relative mx-auto max-w-7xl px-4 py-10 md:px-6 lg:py-14">
         <div
@@ -59,7 +59,7 @@
       </div>
     </section>
 
-    <section class="border-b border-stone-200 bg-white">
+    <section v-if="!isSearching" class="border-b border-stone-200 bg-white">
       <div class="mx-auto grid max-w-7xl gap-4 px-4 py-6 md:grid-cols-2 md:px-6 lg:grid-cols-4">
         <article
           v-for="item in trustItems"
@@ -93,9 +93,9 @@
         <button
           v-if="isSearching || activeSort"
           @click="clearSearch"
-          class="text-sm text-orange-600 hover:underline"
+          class="flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors hover:underline"
         >
-          Clear all
+          &larr; Go back
         </button>
       </div>
 
@@ -103,20 +103,20 @@
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-2xl font-bold text-gray-900">Categories</h2>
           <button
-            v-if="selectedCategory"
-            @click="selectedCategory = ''"
+            v-if="selectedCategories.length > 0"
+            @click="selectedCategories = []"
             class="text-sm text-orange-600 hover:underline"
           >
-            Show all
+            Clear filters
           </button>
         </div>
 
         <div class="flex gap-3 overflow-x-auto pb-2">
           <button
-            @click="selectedCategory = ''"
+            @click="toggleCategory('')"
             :class="[
               'px-4 py-2 rounded-full border whitespace-nowrap transition',
-              !selectedCategory
+              selectedCategories.length === 0
                 ? 'bg-orange-500 text-white border-orange-500'
                 : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
             ]"
@@ -127,10 +127,10 @@
           <button
             v-for="categoryId in uniqueCategories"
             :key="categoryId"
-            @click="selectedCategory = categoryId"
+            @click="toggleCategory(categoryId)"
             :class="[
               'px-4 py-2 rounded-full border whitespace-nowrap transition capitalize',
-              selectedCategory === categoryId
+              selectedCategories.includes(categoryId)
                 ? 'bg-orange-500 text-white border-orange-500'
                 : 'bg-white text-gray-700 border-gray-300 hover:border-orange-400'
             ]"
@@ -160,10 +160,18 @@
           />
         </template>
 
+        <template v-else-if="isSearching">
+          <ProductSection
+            :title="selectedCategories.length > 0 ? 'Filtered Search Results' : 'Search Results'"
+            :products="filteredProducts"
+            :getCategoryLabel="getCategoryLabel"
+          />
+        </template>
+
         <template v-else>
           <ProductSection
-            v-if="selectedCategory"
-            :title="getCategoryLabel(selectedCategory)"
+            v-if="selectedCategories.length > 0"
+            :title="selectedCategories.length === 1 ? getCategoryLabel(selectedCategories[0]) : 'Selected Categories'"
             :products="filteredProducts"
             :getCategoryLabel="getCategoryLabel"
           />
@@ -194,7 +202,7 @@
       </template>
     </div>
 
-    <HeroSection class="mt-8" />
+    <HeroSection  class="mt-8" />
   </div>
 </template>
 
@@ -212,7 +220,7 @@ const router = useRouter()
 const products = ref([])
 const loading = ref(true)
 const error = ref('')
-const selectedCategory = ref('')
+const selectedCategories = ref([])
 const heroPanelRef = ref(null)
 const heroGlow = ref({
   x: 50,
@@ -221,6 +229,21 @@ const heroGlow = ref({
   rotateX: 0,
   rotateY: 0
 })
+
+const toggleCategory = (categoryId) => {
+  if (!categoryId) {
+    // If "All" is clicked, clear the array
+    selectedCategories.value = []
+    return
+  }
+  
+  const index = selectedCategories.value.indexOf(categoryId)
+  if (index > -1) {
+    selectedCategories.value.splice(index, 1)
+  } else {
+    selectedCategories.value.push(categoryId)
+  }
+}
 
 const sortOptions = [
   { value: '',           label: 'Recommended' },
@@ -296,8 +319,8 @@ const uniqueCategories = computed(() => {
 })
 
 const filteredProducts = computed(() => {
-  if (!selectedCategory.value) return products.value
-  return products.value.filter(product => product.categoryId === selectedCategory.value)
+  if (selectedCategories.value.length === 0) return products.value
+  return products.value.filter(product => selectedCategories.value.includes(product.categoryId))
 })
 
 const popularProducts = computed(() =>
@@ -324,7 +347,9 @@ const gamingProducts = computed(() =>
 )
 
 const getCategoryLabel = (categoryId) => {
-  return categoryMap.value[categoryId] || categoryId
+  const label = categoryMap.value[categoryId] || categoryId;
+  if (!label) return '';
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 const loadProducts = async () => {
@@ -342,7 +367,7 @@ const loadProducts = async () => {
 }
 
 const clearSearch = () => {
-  selectedCategory.value = ''
+  selectedCategories.value = []
   router.push({ path: '/', query: {} })
 }
 
