@@ -9,6 +9,7 @@ const reviewRoutes = require("./routes/reviewRoutes");
 const moderationRoutes = require("./routes/moderationRoutes");
 const checkoutRoutes = require("./routes/checkoutRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 const authRoutes = require("./routes/authRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
@@ -33,6 +34,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/moderation", moderationRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
 app.use(notFound);
 app.use(errorHandler);

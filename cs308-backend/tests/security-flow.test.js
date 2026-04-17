@@ -174,6 +174,72 @@ describe("Security and end-to-end integration", () => {
     expect(paymentPageRes.body.availableStock).toBe(0);
   });
 
+  test("customer orders endpoint returns only the authenticated user's tracked orders", async () => {
+    const customerOneRes = await registerCustomer("orders-one");
+    const customerTwoRes = await registerCustomer("orders-two");
+    const customerOneToken = customerOneRes.body.token;
+    const customerTwoToken = customerTwoRes.body.token;
+    const customerOneCartId = createCartId("orders-one");
+    const customerTwoCartId = createCartId("orders-two");
+    createdCartIds.push(customerOneCartId, customerTwoCartId);
+
+    const createProductRes = await request(app)
+      .post("/api/products")
+      .set("Authorization", `Bearer ${jwt.sign({ id: createdUserIds[0], role: "product_manager" }, getJwtSecret(), { expiresIn: "1h" })}`)
+      .send({
+        productId: `orders-api-${Date.now()}`,
+        categoryId: "cat-orders-api",
+        name: "Orders API Product",
+        model: "Shipment View",
+        serialNumber: `ORDERS-API-${Date.now()}`,
+        description: "Product used to verify the customer orders endpoint",
+        quantityInStock: 8,
+        price: 90,
+        warrantyStatus: "1 year",
+        distributorInfo: "Integration Distributor",
+      });
+
+    expect(createProductRes.statusCode).toBe(201);
+    createdProductIds.push(createProductRes.body.product.productId);
+
+    await request(app)
+      .post(`/api/cart/${customerOneCartId}/items`)
+      .set("Authorization", `Bearer ${customerOneToken}`)
+      .send({ productId: createProductRes.body.product.productId, quantity: 1 });
+
+    await request(app)
+      .post(`/api/cart/${customerTwoCartId}/items`)
+      .set("Authorization", `Bearer ${customerTwoToken}`)
+      .send({ productId: createProductRes.body.product.productId, quantity: 1 });
+
+    const customerOneOrderRes = await request(app)
+      .post(`/api/checkout/${customerOneCartId}/order`)
+      .set("Authorization", `Bearer ${customerOneToken}`);
+
+    const customerTwoOrderRes = await request(app)
+      .post(`/api/checkout/${customerTwoCartId}/order`)
+      .set("Authorization", `Bearer ${customerTwoToken}`);
+
+    expect(customerOneOrderRes.statusCode).toBe(201);
+    expect(customerTwoOrderRes.statusCode).toBe(201);
+    createdOrderIds.push(customerOneOrderRes.body.order.id, customerTwoOrderRes.body.order.id);
+
+    const myOrdersRes = await request(app)
+      .get("/api/orders/my-orders")
+      .set("Authorization", `Bearer ${customerOneToken}`);
+
+    expect(myOrdersRes.statusCode).toBe(200);
+    expect(myOrdersRes.body.orders).toHaveLength(1);
+    expect(myOrdersRes.body.orders[0].id).toBe(customerOneOrderRes.body.order.id);
+    expect(myOrdersRes.body.orders[0].deliveryStatus).toBe("processing");
+    expect(myOrdersRes.body.orders[0].trackingNumber).toMatch(/^TRK-/);
+    expect(myOrdersRes.body.orders[0].timeline.map((step) => step.label)).toEqual([
+      "Processing",
+      "In Transit",
+      "Delivered",
+    ]);
+  });
+
   test("authorized full flow works end-to-end", async () => {
     const managerLoginRes = await request(app).post("/api/auth/login").send({
       email: (await User.findById(createdUserIds[0]).lean()).email,
