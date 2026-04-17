@@ -285,7 +285,14 @@ const categoryMap = computed(() => {
 
 const uniqueCategories = computed(() => {
   const ids = new Set(products.value.map(product => product.categoryId))
-  return Array.from(ids).filter(Boolean)
+  const activeCategories = Array.from(ids).filter(Boolean)
+  
+  return activeCategories.sort((a, b) => {
+    const labelA = getCategoryLabel(a) || ''
+    const labelB = getCategoryLabel(b) || ''
+    
+    return labelA.localeCompare(labelB)
+  })
 })
 
 const filteredProducts = computed(() => {
@@ -386,7 +393,6 @@ const scrollToProducts = () => {
 watch(
   () => [route.query.search, route.query.sort],
   () => {
-    selectedCategory.value = ''
     loadProducts()
   },
   { immediate: true }
