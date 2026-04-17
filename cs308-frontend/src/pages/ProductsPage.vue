@@ -79,13 +79,23 @@
     </section>
 
     <div id="products-section" class="max-w-7xl mx-auto px-4 py-6 md:px-6">
-      <div v-if="isSearching" class="flex items-center gap-3 flex-wrap mb-4 px-2">
-        <p class="text-sm text-gray-700">
+      <div v-if="isSearching || activeSort" class="flex items-center gap-3 flex-wrap mb-4 px-2">
+        <p v-if="isSearching" class="text-sm text-gray-700">
           Showing results for:
           <span class="font-semibold text-orange-600">"{{ activeSearch }}"</span>
         </p>
-        <button @click="clearSearch" class="text-sm text-orange-600 hover:underline">
-          Back to all products
+        <p v-if="activeSort" class="text-sm text-gray-500">
+          Sorted by:
+          <span class="font-semibold text-gray-700">
+            {{ sortOptions.find(o => o.value === activeSort)?.label }}
+          </span>
+        </p>
+        <button
+          v-if="isSearching || activeSort"
+          @click="clearSearch"
+          class="text-sm text-orange-600 hover:underline"
+        >
+          Clear all
         </button>
       </div>
 
@@ -164,7 +174,6 @@
               :products="popularProducts"
               :getCategoryLabel="getCategoryLabel"
             />
-
             <ProductSection
               title="Laptops"
               :products="laptopProducts"
@@ -213,6 +222,14 @@ const heroGlow = ref({
   rotateY: 0
 })
 
+const sortOptions = [
+  { value: '',           label: 'Recommended' },
+  { value: 'price_asc',  label: 'Price: Low → High' },
+  { value: 'price_desc', label: 'Price: High → Low' },
+  { value: 'popularity', label: 'Most Popular' },
+  { value: 'newest',     label: 'Newest' },
+]
+
 const trustItems = [
   {
     title: 'Fast shipping',
@@ -258,6 +275,10 @@ const activeSearch = computed(() =>
 
 const isSearching = computed(() => activeSearch.value.length > 0)
 
+const activeSort = computed(() =>
+  typeof route.query.sort === 'string' ? route.query.sort : ''
+)
+
 const categoryMap = computed(() => {
   return Object.fromEntries(categories.map(cat => [cat.categoryId, cat.name]))
 })
@@ -278,7 +299,6 @@ const popularProducts = computed(() =>
       if ((right.popularity ?? 0) !== (left.popularity ?? 0)) {
         return (right.popularity ?? 0) - (left.popularity ?? 0)
       }
-
       return new Date(right.createdAt ?? 0) - new Date(left.createdAt ?? 0)
     })
     .slice(0, 8)
@@ -303,9 +323,8 @@ const getCategoryLabel = (categoryId) => {
 const loadProducts = async () => {
   loading.value = true
   error.value = ''
-
   try {
-    const res = await getProducts(activeSearch.value)
+    const res = await getProducts(activeSearch.value, activeSort.value)
     products.value = res.data ?? []
   } catch (err) {
     error.value = 'Failed to load products'
@@ -323,7 +342,6 @@ const clearSearch = () => {
 const updateHeroGlow = (event) => {
   const bounds = heroPanelRef.value?.getBoundingClientRect()
   if (!bounds) return
-
   heroGlow.value = {
     x: ((event.clientX - bounds.left) / bounds.width) * 100,
     y: ((event.clientY - bounds.top) / bounds.height) * 100,
@@ -366,7 +384,7 @@ const scrollToProducts = () => {
 }
 
 watch(
-  () => route.query.search,
+  () => [route.query.search, route.query.sort],
   () => {
     selectedCategory.value = ''
     loadProducts()

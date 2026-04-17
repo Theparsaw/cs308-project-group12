@@ -2,26 +2,36 @@
   <div class="min-h-screen bg-gray-50">
     <header class="bg-white border-b sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-        <!-- Logo -->
         <router-link to="/" class="text-2xl font-bold text-orange-500 shrink-0">
           CS308 Store
         </router-link>
 
-        <!-- Search bar -->
         <div class="flex-1">
           <form @submit.prevent="submitSearch">
-            <input
-              v-model="searchInput"
-              type="text"
-              placeholder="Search products, categories, brands..."
-              class="w-full border border-orange-300 rounded-full px-5 py-3 outline-none focus:border-orange-500"
-            />
+            <div class="relative flex items-center border border-orange-300 rounded-full focus-within:border-orange-500 bg-white overflow-hidden transition">
+              <input
+                v-model="searchInput"
+                type="text"
+                placeholder="Search products, categories, brands..."
+                class="flex-1 min-w-0 px-5 py-3 outline-none bg-transparent text-sm text-stone-800 placeholder-stone-400"
+              />
+              <div class="flex items-center shrink-0 border-l border-orange-200 mx-1">
+                <select
+                  :value="activeSort"
+                  @change="e => setSort(e.target.value)"
+                  class="text-sm text-gray-600 bg-transparent pl-3 pr-7 py-2.5 outline-none cursor-pointer appearance-none"
+                  style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23f97316%22 stroke-width=%222.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 10px center;"
+                >
+                  <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
           </form>
         </div>
 
-        <!-- Right side actions -->
         <div class="flex items-center gap-3 shrink-0">
-          <!-- Cart -->
           <router-link
             to="/cart"
             class="relative flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
@@ -49,7 +59,6 @@
             </span>
           </router-link>
 
-          <!-- Login — only shown when NOT logged in -->
           <router-link
             v-if="!authStore.isLoggedIn"
             to="/login"
@@ -72,32 +81,26 @@
             <span class="text-sm font-medium text-gray-800">Login</span>
           </router-link>
 
-          <!-- Logged in — show profile link and logout button -->
           <template v-else>
-            <!-- Profile link — shows user's name, clicks to profile page -->
             <router-link
               to="/profile"
               class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
             >
-              <!-- Show the saved profile photo when available -->
               <img
                 v-if="authStore.user?.profileImage"
                 :src="getProfileImageUrl(authStore.user.profileImage)"
                 alt="Profile photo"
                 class="w-6 h-6 rounded-full object-cover border border-orange-200"
               />
-
-              <!-- Otherwise fall back to the user's first initial -->
               <div
                 v-else
                 class="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold"
               >
-                {{ authStore.user?.name?.charAt(0).toUpperCase() }}
+                {{ authStore.user?.name?.charAt(0)?.toUpperCase() }}
               </div>
               <span class="text-sm font-medium text-gray-800">{{ authStore.user?.name }}</span>
             </router-link>
 
-            <!-- Logout button -->
             <button
               type="button"
               class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition cursor-pointer"
@@ -121,7 +124,6 @@
             </button>
           </template>
 
-          <!-- Admin button — only shown for managers -->
           <router-link
             v-if="authStore.isLoggedIn && ['sales_manager', 'product_manager'].includes(authStore.role)"
             to="/admin/products"
@@ -140,7 +142,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch, ref } from 'vue'
+import { computed, onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { resolveAssetUrl } from './api/authApi'
 import { getCart } from './api/cartApi'
@@ -151,7 +153,28 @@ const router = useRouter()
 const route = useRoute()
 const searchInput = ref('')
 
-// Turn backend upload paths into image URLs the browser can render
+const sortOptions = [
+  { value: '',          label: 'Recommended' },
+  { value: 'price_asc',  label: 'Price: Low → High' },
+  { value: 'price_desc', label: 'Price: High → Low' },
+  { value: 'popularity', label: 'Most Popular' },
+  { value: 'newest',     label: 'Newest' },
+]
+
+const activeSort = computed(() =>
+  typeof route.query.sort === 'string' ? route.query.sort : ''
+)
+
+const setSort = (value) => {
+  const query = { ...route.query }
+  if (value) {
+    query.sort = value
+  } else {
+    delete query.sort
+  }
+  router.push({ path: route.path, query })
+}
+
 const getProfileImageUrl = (value) => resolveAssetUrl(value)
 
 const syncCartCount = async () => {
@@ -171,10 +194,15 @@ const handleLogout = () => {
 
 const submitSearch = () => {
   const trimmed = searchInput.value.trim()
-  router.push({
-    path: '/',
-    query: trimmed ? { search: trimmed } : {}
-  })
+  const query = { ...route.query }
+  
+  if (trimmed) {
+    query.search = trimmed
+  } else {
+    delete query.search
+  }
+  
+  router.push({ path: '/', query })
 }
 
 watch(
