@@ -224,6 +224,27 @@ describe("Security and end-to-end integration", () => {
     expect(customerTwoOrderRes.statusCode).toBe(201);
     createdOrderIds.push(customerOneOrderRes.body.order.id, customerTwoOrderRes.body.order.id);
 
+    const unpaidOrdersRes = await request(app)
+      .get("/api/orders/my-orders")
+      .set("Authorization", `Bearer ${customerOneToken}`);
+
+    expect(unpaidOrdersRes.statusCode).toBe(200);
+    expect(unpaidOrdersRes.body.orders).toHaveLength(0);
+
+    const paymentRes = await request(app)
+      .post(`/api/payments/${customerOneOrderRes.body.order.id}`)
+      .set("Authorization", `Bearer ${customerOneToken}`)
+      .send({
+        cardHolder: "Orders API Customer",
+        cardNumber: "4242424242424242",
+        expiryMonth: "12",
+        expiryYear: "2030",
+        cvv: "123",
+      });
+
+    expect(paymentRes.statusCode).toBe(200);
+    expect(paymentRes.body.success).toBe(true);
+
     const myOrdersRes = await request(app)
       .get("/api/orders/my-orders")
       .set("Authorization", `Bearer ${customerOneToken}`);

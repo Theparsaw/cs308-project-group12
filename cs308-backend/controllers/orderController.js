@@ -3,7 +3,10 @@ const { serializeTrackedOrder } = require("../utils/orderTracking");
 
 const getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    const orders = await Order.find({
+      userId: req.user.id,
+      status: "paid",
+    }).sort({ createdAt: -1 });
 
     return res.status(200).json({
       orders: orders.map(serializeTrackedOrder),
