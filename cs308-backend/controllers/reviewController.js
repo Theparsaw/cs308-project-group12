@@ -1,6 +1,7 @@
 const Product = require("../models/Product");
 const Review = require("../models/Review");
 const User = require("../models/User");
+const Order = require("../models/Order");
 const mongoose = require("mongoose");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -133,15 +134,37 @@ const createReview = asyncHandler(async (req, res) => {
     );
   }
 
+  const hasPurchasedProduct = await Order.exists({
+    userId: String(userId).trim(),
+    status: "paid",
+    items: {
+      $elemMatch: {
+        productId: trimmedProductId,
+      },
+    },
+  });
+
+  if (!hasPurchasedProduct) {
+    throw new AppError(
+      "You can only review products that you have purchased",
+      403,
+      "PURCHASE_REQUIRED",
+      {
+        productId: "You can only review products that you have purchased",
+      }
+    );
+  }
+
   const review = await Review.create({
     userId,
     productId: trimmedProductId,
     rating: ratingNumber,
     comment: normalizedComment,
+    status: "approved",
   });
 
   return res.status(201).json({
-    message: "Review submitted successfully and is pending approval",
+    message: "Review submitted successfully.",
     review,
   });
 });

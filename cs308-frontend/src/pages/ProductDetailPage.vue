@@ -109,20 +109,27 @@
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
             <h2 class="text-2xl font-semibold text-gray-900">Write a Review</h2>
-            <p class="text-sm text-gray-500 mt-1">
-              {{ authStore.isLoggedIn ? 'Your review will be submitted for approval. A comment is optional.' : 'Log in to submit a review.' }}
+            <p class="text-sm text-gray-500 mt-1" v-if="authStore.isLoggedIn">
+              You can review this product only if you have purchased it before. A rating may be accepted immediately, while comments may require approval before being shown publicly.
+            </p>
+            <p class="text-sm text-gray-500 mt-1" v-else>
+              Log in to submit a review.
             </p>
           </div>
           <button
             v-if="!authStore.isLoggedIn"
-            @click="router.push('/login')"
+            @click="goToLoginForReview"
             class="text-sm font-medium text-blue-600 hover:text-blue-800"
           >
             Go to Login
           </button>
         </div>
 
-        <div v-if="reviewMessage" :class="reviewMessageTone === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-700 border-green-200'" class="mb-4 rounded-lg border p-3 text-sm">
+        <div
+          v-if="reviewMessage"
+          :class="reviewMessageTone === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-700 border-green-200'"
+          class="mb-4 rounded-lg border p-3 text-sm"
+        >
           {{ reviewMessage }}
         </div>
 
@@ -170,7 +177,7 @@
           <button
             type="submit"
             class="bg-slate-900 text-white px-5 py-3 rounded-lg font-semibold hover:bg-slate-800 disabled:bg-slate-400"
-            :disabled="submittingReview"
+            :disabled="submittingReview || !authStore.isLoggedIn"
           >
             <span v-if="submittingReview">Submitting...</span>
             <span v-else>Submit Review</span>
@@ -222,6 +229,10 @@ const reviewErrors = reactive({
 
 const goBack = () => {
   router.push('/products')
+}
+
+const goToLoginForReview = () => {
+  router.push(`/login?redirect=${encodeURIComponent(route.fullPath)}`)
 }
 
 const decreaseQuantity = () => {
@@ -304,7 +315,7 @@ const handleReviewSubmit = async () => {
     const payload = {
       productId: route.params.id,
       rating: Number(reviewForm.rating),
-      comment: reviewForm.comment,
+      comment: reviewForm.comment.trim(),
     }
 
     const res = await createReview(payload)
