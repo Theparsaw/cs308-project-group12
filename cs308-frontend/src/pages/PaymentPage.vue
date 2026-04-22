@@ -143,11 +143,14 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getOrderForPayment, submitPayment } from '../api/paymentApi'
+import { cartStore } from '../store/cart'
 
 const route = useRoute()
+const router = useRouter()
+let successRedirectTimeout = null
 
 const order = ref({
   id: '',
@@ -249,6 +252,13 @@ const handleSubmit = async () => {
     setOrderState(res.data.order)
     resultMessage.value = res.data.message
     resultSuccess.value = res.data.success
+
+    if (res.data.success) {
+      cartStore.clear()
+      successRedirectTimeout = window.setTimeout(() => {
+        router.push('/profile?tab=orders')
+      }, 1200)
+    }
   } catch (err) {
     formError.value = err?.response?.data?.message || 'Failed to process payment'
   } finally {
@@ -257,4 +267,10 @@ const handleSubmit = async () => {
 }
 
 onMounted(loadOrder)
+
+onBeforeUnmount(() => {
+  if (successRedirectTimeout) {
+    window.clearTimeout(successRedirectTimeout)
+  }
+})
 </script>

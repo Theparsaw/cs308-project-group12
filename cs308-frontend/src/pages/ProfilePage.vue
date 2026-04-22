@@ -739,7 +739,7 @@ const saveProfile = async () => {
 watch(
   () => activeTab.value,
   (tab) => {
-    if (tab === 'orders' && orders.value.length === 0 && !ordersLoading.value && !ordersError.value) {
+    if (tab === 'orders' && !ordersLoading.value) {
       fetchOrders()
     }
   },
