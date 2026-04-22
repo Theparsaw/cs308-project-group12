@@ -507,6 +507,14 @@ const saveProfile = async () => {
   }
 }
 
-// Run fetchProfile as soon as the page loads
+watch(
+  () => activeTab.value,
+  (tab) => {
+    if (tab === 'orders' && !ordersLoading.value) {
+      fetchOrders()
+    }
+  },
+  { immediate: true }
+)
 onMounted(fetchProfile)
 </script>
