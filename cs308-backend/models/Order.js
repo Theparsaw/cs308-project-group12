@@ -55,6 +55,10 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending_payment", "paid", "payment_failed", "cancelled"],
       default: "pending_payment",
     },
+    paidAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

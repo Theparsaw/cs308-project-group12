@@ -1,17 +1,7 @@
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
-
-const serializeOrder = (order) => ({
-  id: order._id,
-  userId: order.userId,
-  cartId: order.cartId,
-  items: order.items,
-  totalPrice: order.totalPrice,
-  status: order.status,
-  createdAt: order.createdAt,
-  updatedAt: order.updatedAt,
-});
+const { serializeOrder } = require("../utils/orderTracking");
 
 const validateCartStock = async (cartItems) => {
   for (const item of cartItems) {
