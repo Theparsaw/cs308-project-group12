@@ -126,7 +126,16 @@
 
         <div class="mt-4 flex items-center justify-between text-slate-600">
           <span>Status</span>
-          <span class="font-medium text-slate-900">{{ order.status }}</span>
+          <span
+            class="font-medium"
+            :class="{
+              'text-green-600': order.status === 'paid',
+              'text-red-600': order.status === 'payment_failed',
+              'text-yellow-600': order.status === 'pending_payment'
+            }"
+          >
+            {{ formatStatus(order.status) }}
+          </span>
         </div>
 
         <div class="mt-3 flex items-center justify-between text-lg">
@@ -147,6 +156,11 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrderForPayment, submitPayment } from '../api/paymentApi'
 import { cartStore } from '../store/cart'
+const formatStatus = (status) => {
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 const route = useRoute()
 const router = useRouter()

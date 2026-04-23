@@ -2,6 +2,7 @@ const Payment = require("../models/Payment");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
 const Cart = require("../models/Cart");
+const Delivery = require("../models/Delivery");
 const { serializeOrder } = require("../utils/orderTracking");
 
 const currentYear = new Date().getFullYear();
@@ -174,21 +175,35 @@ const processPayment = async (req, res) => {
         await cart.save();
       }
 
-      return res.status(200).json({
-        success: true,
-        message: "Payment completed successfully",
-        paymentStatus: payment.status,
-        payment: {
-          id: payment._id,
-          orderId: payment.orderId,
-          amount: payment.amount,
-          status: payment.status,
-          cardLast4: payment.cardLast4,
-          transactionId: payment.transactionId,
-          createdAt: payment.createdAt,
-        },
-        order: serializeOrder(order),
-      });
+            // CREATE DELIVERY RECORD
+      try {
+        const delivery = await Delivery.create({
+          orderId: order._id.toString(),
+          userId: order.userId,
+          items: order.items,
+          totalPrice: order.totalPrice,
+          address: "Default address", // you can improve later
+          status: "processing",
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "Payment completed successfully",
+          paymentStatus: payment.status,
+          delivery, // 👈 include delivery
+          order: serializeOrder(order),
+        });
+
+      } catch (deliveryError) {
+        console.error("Delivery creation failed:", deliveryError);
+
+        return res.status(200).json({
+          success: true,
+          message: "Payment succeeded but delivery creation failed",
+          paymentStatus: payment.status,
+          order: serializeOrder(order),
+        });
+      }
     }
 
     order.status = "payment_failed";
