@@ -307,7 +307,10 @@
                   Tracking number: <span class="font-medium text-gray-700">{{ order.trackingNumber }}</span>
                 </p>
                 <p class="mt-1 text-sm text-gray-500">
-                  Estimated delivery: <span class="font-medium text-gray-700">{{ formatDate(order.estimatedDeliveryAt) }}</span>
+                  Estimated delivery:
+                  <span class="font-medium text-gray-700">
+                    {{ order.estimatedDeliveryAt ? formatDate(order.estimatedDeliveryAt) : 'Unavailable' }}
+                  </span>
                 </p>
               </div>
 
@@ -362,7 +365,7 @@
                         {{ getTimelineMarker(step) }}
                       </div>
                       <div
-                        v-if="step.key !== 'delivered'"
+                        v-if="!step.isLast"
                         class="mt-2 h-12 w-px"
                         :class="step.state === 'completed' ? 'bg-orange-300' : 'bg-gray-200'"
                       />
@@ -526,8 +529,10 @@ const formatPaymentStatus = (status) => {
 const formatDeliveryStatus = (status) => {
   const labels = {
     processing: 'Processing',
-    in_transit: 'In Transit',
+    shipped: 'Shipped',
+    out_for_delivery: 'Out for Delivery',
     delivered: 'Delivered',
+    cancelled: 'Cancelled',
   }
   return labels[status] || status
 }
@@ -535,8 +540,10 @@ const formatDeliveryStatus = (status) => {
 const getDeliveryBadgeClass = (status) => {
   const classes = {
     processing: 'bg-amber-100 text-amber-700',
-    in_transit: 'bg-sky-100 text-sky-700',
+    shipped: 'bg-blue-100 text-blue-700',
+    out_for_delivery: 'bg-purple-100 text-purple-700',
     delivered: 'bg-emerald-100 text-emerald-700',
+    cancelled: 'bg-red-100 text-red-700',
   }
   return classes[status] || 'bg-gray-100 text-gray-700'
 }
@@ -553,7 +560,16 @@ const getTimelineDotClass = (state) => {
 const getTimelineMarker = (step) => {
   if (step.state === 'completed') return 'OK'
   if (step.state === 'current') return 'NOW'
-  return step.label.slice(0, 1).toUpperCase()
+
+  const markers = {
+    processing: 'P',
+    shipped: 'S',
+    out_for_delivery: 'O',
+    delivered: 'D',
+    cancelled: 'X',
+  }
+
+  return markers[step.key] || step.label.slice(0, 1).toUpperCase()
 }
 
 const formatTimelineState = (state) => {

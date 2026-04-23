@@ -11,6 +11,7 @@ const checkoutRoutes = require("./routes/checkoutRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const authRoutes = require("./routes/authRoutes");
+const deliveryRoutes = require("./routes/deliveryRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 dotenv.config();
@@ -36,6 +37,8 @@ app.use("/api/checkout", checkoutRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/deliveries", deliveryRoutes);
+
 app.use(notFound);
 app.use(errorHandler);
 

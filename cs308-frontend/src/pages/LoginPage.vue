@@ -85,15 +85,12 @@ const syncCartTotalItems = async () => {
 }
 
 const handleLogin = async () => {
-  // Clear any previous error
   error.value = ''
   loading.value = true
 
   try {
-    // Send email and password to the backend
     const res = await loginUser({ email: email.value, password: password.value })
 
-    // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
     resetCartId()
 
@@ -124,14 +121,15 @@ const handleLogin = async () => {
       localStorage.removeItem(CART_MERGE_ERROR_KEY)
     }
 
-    if (userRole === 'sales_manager' || userRole === 'product_manager' || userRole === 'admin') {
+    if (userRole === 'sales_manager') {
+      router.push('/admin/deliveries')
+    } else if (userRole === 'product_manager' || userRole === 'admin') {
       router.push('/admin/products')
     } else {
       router.push('/')
     }
 
   } catch (err) {
-    // Show the error message from the backend
     if (!err.response) {
       error.value = 'Cannot reach the backend server. Make sure the backend is running on http://localhost:5001.'
     } else {

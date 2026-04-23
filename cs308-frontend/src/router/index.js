@@ -10,6 +10,7 @@ import RegisterPage from '../pages/RegisterPage.vue'
 import CheckoutPage from '../pages/CheckoutPage.vue'
 import PaymentPage from '../pages/PaymentPage.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
+
 // Admin layout + pages
 import AdminLayout from '../components/admin/AdminLayout.vue'
 import AdminProductsPage from '../pages/admin/AdminProductsPage.vue'
@@ -18,14 +19,24 @@ import EditProductPage from '../pages/admin/EditProductPage.vue'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage.vue'
 import AdminStockPage from '../pages/admin/AdminStockPage.vue'
+import SalesDeliveriesPage from '../pages/admin/SalesDeliveriesPage.vue'
 
-const adminMeta = {
+const adminAreaMeta = {
   requiresAuth: true,
   roles: ['sales_manager', 'product_manager'],
 }
 
+const productManagerMeta = {
+  requiresAuth: true,
+  roles: ['product_manager'],
+}
+
+const salesManagerMeta = {
+  requiresAuth: true,
+  roles: ['sales_manager'],
+}
+
 const routes = [
-  // Public routes
   { path: '/', component: ProductsPage },
   { path: '/products', redirect: '/' },
   { path: '/products/:id', component: ProductDetailPage },
@@ -35,45 +46,54 @@ const routes = [
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
   { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
-  // Admin routes
+
   {
     path: '/admin',
     component: AdminLayout,
-    meta: adminMeta,
+    meta: adminAreaMeta,
     children: [
       {
         path: '',
-        redirect: '/admin/dashboard',
+        redirect: () => {
+          return authStore.role === 'sales_manager'
+            ? '/admin/deliveries'
+            : '/admin/dashboard'
+        },
       },
       {
         path: 'dashboard',
         component: AdminDashboardPage,
-        meta: adminMeta,
+        meta: productManagerMeta,
       },
       {
         path: 'products',
         component: AdminProductsPage,
-        meta: adminMeta,
+        meta: productManagerMeta,
       },
       {
         path: 'products/add',
         component: AddProductPage,
-        meta: adminMeta,
+        meta: productManagerMeta,
       },
       {
         path: 'products/edit/:id',
         component: EditProductPage,
-        meta: adminMeta,
+        meta: productManagerMeta,
       },
       {
         path: 'reviews',
         component: AdminReviewsPage,
-        meta: adminMeta,
+        meta: productManagerMeta,
       },
       {
         path: 'stock',
         component: AdminStockPage,
-        meta: adminMeta,
+        meta: productManagerMeta,
+      },
+      {
+        path: 'deliveries',
+        component: SalesDeliveriesPage,
+        meta: salesManagerMeta,
       },
     ],
   },
