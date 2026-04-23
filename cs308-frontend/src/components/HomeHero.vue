@@ -1,10 +1,10 @@
 <template>
   <section class="relative overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f5f5f4_36%,#1c1917_36%,#0c0a09_100%)]">
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.24),transparent_24%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.12),transparent_22%)]" />
-    <div class="relative mx-auto max-w-7xl px-4 py-10 md:px-6 lg:py-14">
+    <div class="relative mx-auto max-w-7xl px-4 py-7 md:px-6 lg:py-10">
       <div
         ref="heroPanelRef"
-        class="group relative min-h-[38rem] overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,#292524_0%,#1c1917_42%,#7c2d12_100%)] shadow-2xl transition duration-150 md:min-h-[42rem]"
+        class="group relative min-h-[34rem] overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,#292524_0%,#1c1917_42%,#7c2d12_100%)] shadow-2xl transition duration-150 md:min-h-[37rem]"
         :style="heroPanelStyle"
         @mousemove="updateHeroGlow"
         @mouseleave="resetHeroGlow"
@@ -13,44 +13,95 @@
         <div class="absolute -left-16 top-10 h-72 w-72 rounded-full bg-amber-300/12 blur-3xl" />
         <div class="absolute bottom-0 right-0 h-[26rem] w-[26rem] rounded-full bg-orange-500/16 blur-3xl" />
         <div class="absolute left-1/3 top-1/4 h-80 w-80 rounded-full bg-stone-100/6 blur-3xl" />
+
+        <div
+          v-for="(slide, index) in slides"
+          :key="slide.id"
+          class="absolute inset-0 overflow-hidden rounded-[inherit] transition-opacity duration-500 [backface-visibility:hidden] [transform:translateZ(0)]"
+          :class="index === currentSlideIndex ? 'opacity-100' : 'opacity-0'"
+        >
+          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(12,10,9,0.84)_0%,rgba(28,25,23,0.62)_45%,rgba(12,10,9,0.28)_100%)]" />
+          <div class="absolute inset-y-6 right-4 w-full overflow-hidden rounded-[1.75rem] [backface-visibility:hidden] [transform:translateZ(0)] md:inset-y-8 md:right-8 md:w-[46%] lg:inset-y-10 lg:right-10 lg:w-[42%]">
+            <img
+              :src="slide.image"
+              :alt="slide.imageAlt"
+              class="h-full w-full object-contain object-center"
+            >
+          </div>
+          <div class="absolute inset-0 bg-[radial-gradient(circle_at_78%_35%,rgba(251,146,60,0.28),transparent_24%)]" />
+        </div>
+
         <div
           class="pointer-events-none absolute inset-0 transition duration-200"
           :style="heroGlowStyle"
         />
         <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(251,146,60,0.16),transparent_34%,rgba(255,255,255,0.05)_60%,rgba(251,146,60,0.12)_100%)]" />
-        <div class="relative z-10 flex min-h-[38rem] flex-col justify-between p-8 md:min-h-[42rem] md:p-10 lg:p-12">
-          <div class="max-w-2xl">
-            <p class="mb-4 text-sm font-semibold uppercase tracking-[0.35em] text-orange-300">
-              CS308 Store
-            </p>
-            <h1 class="mb-5 text-4xl font-bold leading-tight text-white md:text-6xl">
-              Tech essentials curated for people who want fast, reliable upgrades.
-            </h1>
-            <p class="mb-8 max-w-xl text-base leading-7 text-stone-200 md:text-lg">
-              Shop premium devices, gaming gear, and audio picks with a cleaner storefront and
-              clearer path to what matters most.
-            </p>
-            <button
-              type="button"
-              class="inline-flex items-center rounded-full bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-600"
-              @click="$emit('shop-now')"
-            >
-              Shop now
-            </button>
+
+        <div class="relative z-10 flex min-h-[34rem] flex-col p-7 md:min-h-[37rem] md:p-8 lg:p-10">
+          <div class="flex max-w-2xl flex-1 flex-col">
+            <div class="min-h-[13rem] md:min-h-[15rem] lg:min-h-[16.5rem]">
+              <p class="mb-4 text-sm font-semibold uppercase tracking-[0.35em] text-orange-300">
+                {{ activeSlide.eyebrow }}
+              </p>
+              <h1 class="mb-5 text-4xl font-bold leading-tight text-white md:text-6xl">
+                {{ activeSlide.title }}
+              </h1>
+              <p class="max-w-xl text-base leading-7 text-stone-200 md:text-lg">
+                {{ activeSlide.description }}
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-4 pt-4">
+              <button
+                type="button"
+                class="inline-flex items-center rounded-full bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-600"
+                @click="$emit('shop-now')"
+              >
+                {{ activeSlide.cta }}
+              </button>
+              <div class="rounded-full border border-white/12 bg-black/24 px-4 py-2 text-sm font-medium text-stone-100 backdrop-blur-sm">
+                {{ activeSlide.badge }}
+              </div>
+            </div>
           </div>
 
-          <div class="grid gap-4 md:grid-cols-3">
-            <div class="rounded-[1.5rem] border border-white/10 bg-black/16 p-5 backdrop-blur-sm">
-              <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Curated tech</p>
-              <p class="mt-3 text-lg font-semibold text-white">Premium hardware across your daily setup.</p>
+          <div class="mt-8 w-full max-w-sm min-h-[15rem] rounded-[1.75rem] border border-white/12 bg-black/24 p-4 backdrop-blur-md md:mt-10">
+            <p class="text-xs uppercase tracking-[0.35em] text-orange-200">Live promotions</p>
+            <div class="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/10 text-lg font-semibold text-white transition hover:border-orange-300/60 hover:bg-white/16"
+                aria-label="Previous slide"
+                @click="goToPreviousSlide"
+              >
+                &#8592;
+              </button>
+              <button
+                type="button"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/10 text-lg font-semibold text-white transition hover:border-orange-300/60 hover:bg-white/16"
+                aria-label="Next slide"
+                @click="goToNextSlide"
+              >
+                &#8594;
+              </button>
+              <p class="text-sm text-stone-200">{{ currentSlideIndex + 1 }} / {{ slides.length }}</p>
             </div>
-            <div class="rounded-[1.5rem] border border-white/10 bg-black/16 p-5 backdrop-blur-sm">
-              <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Interactive surface</p>
-              <p class="mt-3 text-lg font-semibold text-white">The entire hero now responds to cursor movement.</p>
+
+            <div class="mt-5 flex items-center gap-2">
+              <button
+                v-for="(slide, index) in slides"
+                :key="slide.id"
+                type="button"
+                class="h-2.5 rounded-full transition"
+                :class="index === currentSlideIndex ? 'w-9 bg-orange-400' : 'w-2.5 bg-white/35 hover:bg-white/55'"
+                :aria-label="`Go to slide ${index + 1}`"
+                @click="setSlide(index)"
+              />
             </div>
-            <div class="rounded-[1.5rem] border border-white/10 bg-black/16 p-5 backdrop-blur-sm">
-              <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Faster entry</p>
-              <p class="mt-3 text-lg font-semibold text-white">Users land directly into shopping without extra blocks.</p>
+
+            <div class="mt-5 min-h-[6.5rem] rounded-[1.5rem] border border-white/10 bg-white/8 p-5">
+              <p class="text-sm font-semibold text-white">{{ activeSlide.panelTitle }}</p>
+              <p class="mt-2 text-sm leading-6 text-stone-200">{{ activeSlide.panelText }}</p>
             </div>
           </div>
         </div>
@@ -60,7 +111,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+
+const props = defineProps({
+  slides: {
+    type: Array,
+    default: () => []
+  }
+})
 
 defineEmits(['shop-now'])
 
@@ -72,6 +130,56 @@ const heroGlow = ref({
   rotateX: 0,
   rotateY: 0
 })
+const currentSlideIndex = ref(0)
+let autoplayId = null
+
+const slides = computed(() => props.slides)
+
+const activeSlide = computed(() => slides.value[currentSlideIndex.value] ?? {
+  eyebrow: '',
+  title: '',
+  description: '',
+  cta: 'Shop now',
+  badge: '',
+  panelTitle: '',
+  panelText: '',
+  image: '',
+  imageAlt: ''
+})
+
+const setSlide = (index) => {
+  const total = slides.value.length
+  if (!total) return
+  currentSlideIndex.value = (index + total) % total
+  restartAutoplay()
+}
+
+const goToNextSlide = () => {
+  setSlide(currentSlideIndex.value + 1)
+}
+
+const goToPreviousSlide = () => {
+  setSlide(currentSlideIndex.value - 1)
+}
+
+const clearAutoplay = () => {
+  if (autoplayId) {
+    window.clearInterval(autoplayId)
+    autoplayId = null
+  }
+}
+
+const startAutoplay = () => {
+  clearAutoplay()
+  if (slides.value.length < 2) return
+  autoplayId = window.setInterval(() => {
+    currentSlideIndex.value = (currentSlideIndex.value + 1) % slides.value.length
+  }, 5500)
+}
+
+const restartAutoplay = () => {
+  startAutoplay()
+}
 
 const updateHeroGlow = (event) => {
   const bounds = heroPanelRef.value?.getBoundingClientRect()
@@ -92,8 +200,10 @@ const resetHeroGlow = () => {
 }
 
 const heroPanelStyle = computed(() => ({
-  transform: `perspective(1400px) rotateX(${heroGlow.value.rotateX}deg) rotateY(${heroGlow.value.rotateY}deg)`,
-  boxShadow: `0 28px 80px rgba(28, 25, 23, 0.34), 0 0 54px rgba(251, 146, 60, ${0.08 + heroGlow.value.opacity * 0.1})`
+  transform: `perspective(1400px) translateZ(0) rotateX(${heroGlow.value.rotateX}deg) rotateY(${heroGlow.value.rotateY}deg)`,
+  boxShadow: `0 28px 80px rgba(28, 25, 23, 0.34), 0 0 54px rgba(251, 146, 60, ${0.08 + heroGlow.value.opacity * 0.1})`,
+  willChange: 'transform',
+  WebkitMaskImage: '-webkit-radial-gradient(white, black)'
 }))
 
 const heroGlowStyle = computed(() => ({
@@ -105,4 +215,19 @@ const heroGlowStyle = computed(() => ({
     rgba(28, 25, 23, 0) 48%)
   `
 }))
+
+watch(slides, (nextSlides) => {
+  if (currentSlideIndex.value >= nextSlides.length) {
+    currentSlideIndex.value = 0
+  }
+  startAutoplay()
+}, { immediate: true })
+
+onMounted(() => {
+  startAutoplay()
+})
+
+onUnmounted(() => {
+  clearAutoplay()
+})
 </script>

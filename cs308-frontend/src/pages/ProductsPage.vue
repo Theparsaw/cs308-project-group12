@@ -1,6 +1,10 @@
 <template>
   <div class="bg-stone-50">
-    <HomeHero v-if="!isSearching" @shop-now="scrollToProducts" />
+    <HomeHero
+      v-if="!isSearching && !loading && heroSlides.length"
+      :slides="heroSlides"
+      @shop-now="scrollToProducts"
+    />
 
     <TrustFeatures v-if="!isSearching" />
 
@@ -190,6 +194,28 @@ const popularProducts = computed(() =>
       return new Date(right.createdAt ?? 0) - new Date(left.createdAt ?? 0)
     })
     .slice(0, 8)
+)
+
+const promoImages = [
+  '/promos/photo01.png',
+  '/promos/61JZTWfKMRL._AC_SL1500_.png',
+  '/promos/71brAk7Sc2L._AC_SL1500_.png',
+  '/promos/61vJtKbAssL._AC_SL1500_.png'
+]
+
+const heroSlides = computed(() =>
+  popularProducts.value.slice(0, 4).map((product, index) => ({
+    id: product.productId,
+    eyebrow: `${getCategoryLabel(product.categoryId)} offer`,
+    title: `${product.name} ${product.model}`,
+    description: product.description,
+    cta: 'Shop now',
+    badge: index === 0 ? 'Top pick this week' : `${Math.min(10 + (index * 5), 25)}% off featured selection`,
+    panelTitle: 'Homepage spotlight',
+    panelText: `Now featured at $${Number(product.price ?? 0).toLocaleString()}. Stock available: ${product.quantityInStock ?? 0}.`,
+    image: promoImages[index] || promoImages[0],
+    imageAlt: `${product.name} ${product.model}`
+  }))
 )
 
 const laptopProducts = computed(() => products.value.filter(p => p.categoryId === 'laptops'))
