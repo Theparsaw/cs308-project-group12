@@ -13,11 +13,11 @@ cs308/
 1. Go to backend folder: cd cs308-backend
 2. Install dependencies: npm install
 3. Create .env file inside cs308-backend/
-Add:
+Add:    
 PORT=5001
-MONGO_URI=mongodb+srv://mustafaozen_db_user:IyK0IykcQUEy5KEG@cs308cluster.7dvlznf.mongodb.net/?
+MONGO_URI=your_mongodb_connection_string
 appName=CS308ClusterappName = CS308Cluster
-JWTSecret = cs308_online_store_auth_secret_2026
+JWTSecret = our_secret
 
 Seed database (optional)
 node seed/seedProducts.js
