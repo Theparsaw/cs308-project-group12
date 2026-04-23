@@ -145,7 +145,7 @@
 import { computed, onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { resolveAssetUrl } from './api/authApi'
-import { getCart } from './api/cartApi'
+import { getCart, resetCartId } from './api/cartApi'
 import { authStore } from './store/auth'
 import { cartStore } from './store/cart'
 
@@ -189,6 +189,7 @@ const syncCartCount = async () => {
 const handleLogout = () => {
   authStore.clearAuth()
   cartStore.clear()
+  resetCartId()
   router.push('/login')
 }
 

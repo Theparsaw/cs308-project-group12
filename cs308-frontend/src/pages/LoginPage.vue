@@ -58,7 +58,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { loginUser } from '../api/authApi'
-import { getCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
+import { getCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
@@ -75,6 +75,15 @@ const password = ref('')
 const loading = ref(false)
 const error = ref('')
 
+const syncCartTotalItems = async () => {
+  try {
+    const cartRes = await getCart()
+    cartStore.setTotalItems(cartRes.data?.totalItems)
+  } catch {
+    cartStore.clear()
+  }
+}
+
 const handleLogin = async () => {
   // Clear any previous error
   error.value = ''
@@ -86,6 +95,7 @@ const handleLogin = async () => {
 
     // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
+    resetCartId()
 
     const userRole = res.data.user?.role
     const isAdminLike =
@@ -97,20 +107,13 @@ const handleLogin = async () => {
     if (!isAdminLike) {
       try {
         await mergeGuestCartIntoUserCart()
-        const cartRes = await getCart()
-        cartStore.setTotalItems(cartRes.data?.totalItems ?? 0)
+        await syncCartTotalItems()
       } catch (mergeError) {
         const message =
           mergeError?.response?.data?.message || 'Logged in, but some cart items could not be restored.'
 
         localStorage.setItem(CART_MERGE_ERROR_KEY, message)
-
-        try {
-          const cartRes = await getCart()
-          cartStore.setTotalItems(cartRes.data?.totalItems ?? 0)
-        } catch {
-          cartStore.setTotalItems(0)
-        }
+        await syncCartTotalItems()
 
         router.push('/cart')
         return
@@ -121,8 +124,11 @@ const handleLogin = async () => {
       localStorage.removeItem(CART_MERGE_ERROR_KEY)
     }
 
-    // After successful login, always go to main page
-    router.push('/')
+    if (userRole === 'sales_manager' || userRole === 'product_manager' || userRole === 'admin') {
+      router.push('/admin/products')
+    } else {
+      router.push('/')
+    }
 
   } catch (err) {
     // Show the error message from the backend
