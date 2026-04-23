@@ -15,7 +15,9 @@ cs308/
 3. Create .env file inside cs308-backend/
 Add:
 PORT=5001
-MONGO_URI=your_mongodb_connection_string
+MONGO_URI=mongodb+srv://mustafaozen_db_user:IyK0IykcQUEy5KEG@cs308cluster.7dvlznf.mongodb.net/?
+appName=CS308ClusterappName = CS308Cluster
+JWTSecret = cs308_online_store_auth_secret_2026
 
 Seed database (optional)
 node seed/seedProducts.js

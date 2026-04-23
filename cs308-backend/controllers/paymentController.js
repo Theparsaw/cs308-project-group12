@@ -1,3 +1,8 @@
+const User = require("../models/User");
+const Invoice = require("../models/Invoice");
+const { generateInvoicePDF } = require("../utils/invoiceGenerator");
+const { sendInvoiceEmail } = require("../utils/emailSender");
+
 const Payment = require("../models/Payment");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
@@ -174,8 +179,7 @@ const processPayment = async (req, res) => {
         cart.totalPrice = 0;
         await cart.save();
       }
-
-            // CREATE DELIVERY RECORD
+    // CREATE DELIVERY RECORD
       try {
         const delivery = await Delivery.create({
           orderId: order._id.toString(),
@@ -185,6 +189,33 @@ const processPayment = async (req, res) => {
           address: "Default address", // you can improve later
           status: "processing",
         });
+
+        // 🟢 NEW INVOICE LOGIC STARTS HERE 🟢
+        try {
+          // Fetch user details to get their name and email
+          const user = await User.findById(order.userId);
+          const invoiceNum = `INV-${order._id.toString().slice(-6).toUpperCase()}`;
+          
+          // 1. Generate PDF in memory buffer
+          const pdfBuffer = await generateInvoicePDF(order, user);
+          
+          // 2. Send the Email with the attached PDF
+          const emailSent = await sendInvoiceEmail(user.email, invoiceNum, pdfBuffer);
+          
+          // 3. Store the Invoice Record in the database
+          await Invoice.create({
+            orderId: order._id.toString(),
+            userId: order.userId,
+            invoiceNumber: invoiceNum,
+            amount: order.totalPrice,
+            status: emailSent ? "emailed" : "failed",
+          });
+        } catch (invoiceError) {
+          console.error("Invoice generation or emailing failed:", invoiceError);
+          // We swallow this error so the user still gets a success response 
+          // even if the email service is temporarily down.
+        }
+        // 🟢 NEW INVOICE LOGIC ENDS HERE 🟢
 
         return res.status(200).json({
           success: true,
