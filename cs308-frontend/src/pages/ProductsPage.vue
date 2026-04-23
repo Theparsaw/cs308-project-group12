@@ -203,8 +203,15 @@ const promoImages = [
   '/promos/61vJtKbAssL._AC_SL1500_.png'
 ]
 
+const heroProducts = computed(() => {
+  const featured = popularProducts.value.slice(0, 3)
+  const sonyHeadphones = products.value.find(product => product.productId === 'p011')
+
+  return sonyHeadphones ? [...featured, sonyHeadphones] : featured
+})
+
 const heroSlides = computed(() =>
-  popularProducts.value.slice(0, 4).map((product, index) => ({
+  heroProducts.value.slice(0, 4).map((product, index) => ({
     id: product.productId,
     eyebrow: `${getCategoryLabel(product.categoryId)} offer`,
     title: `${product.name} ${product.model}`,
