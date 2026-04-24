@@ -214,14 +214,14 @@ const heroSlides = computed(() =>
   heroProducts.value.slice(0, 4).map((product, index) => ({
     id: product.productId,
     eyebrow: `${getCategoryLabel(product.categoryId)} offer`,
-    title: `${product.name} ${product.model}`,
+    title: product.model,
     description: product.description,
     cta: 'Shop now',
     badge: index === 0 ? 'Top pick this week' : `${Math.min(10 + (index * 5), 25)}% off featured selection`,
     panelTitle: 'Homepage spotlight',
     panelText: `Now featured at $${Number(product.price ?? 0).toLocaleString()}. Stock available: ${product.quantityInStock ?? 0}.`,
     image: promoImages[index] || promoImages[0],
-    imageAlt: `${product.name} ${product.model}`
+    imageAlt: `${product.model} by ${product.name}`
   }))
 )
 

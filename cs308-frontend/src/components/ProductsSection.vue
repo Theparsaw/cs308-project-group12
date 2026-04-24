@@ -16,7 +16,7 @@
           <img
             v-if="product.imageUrl"
             :src="product.imageUrl"
-            :alt="`${product.name} ${product.model}`"
+            :alt="`${product.model} by ${product.name}`"
             class="w-full h-full object-cover"
           />
           <div
@@ -32,10 +32,10 @@
         </p>
 
         <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
-          {{ product.name }}
+          {{ product.model }}
         </h3>
 
-        <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
+        <p class="text-sm text-gray-500 mt-1">{{ product.name }}</p>
 
         <div class="mt-2 flex items-center gap-2 text-sm">
           <span class="text-amber-500 font-semibold">{{ renderAverageStars(product.averageRating) }}</span>

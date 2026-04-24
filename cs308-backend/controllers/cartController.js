@@ -7,7 +7,7 @@ const { processPayment } = require("../utils/paymentGateway");
 const calculateTotalPrice = (items) =>
   items.reduce((total, item) => total + item.unitPrice * item.quantity, 0);
 
-const formatProductName = (product) => `${product.name} ${product.model}`;
+const formatProductName = (product) => product.model;
 
 const serializeCart = (cart) => ({
   cartId: cart.cartId,

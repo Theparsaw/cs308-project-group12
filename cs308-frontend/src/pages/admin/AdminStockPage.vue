@@ -40,7 +40,7 @@
             <input
               v-model="searchTerm"
               type="text"
-              placeholder="Search by product name or product ID..."
+              placeholder="Search by product ID, model, or brand..."
               class="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
             />
           </div>
@@ -93,7 +93,7 @@
                       <img
                         v-if="product.imageUrl"
                         :src="product.imageUrl"
-                        :alt="product.name"
+                        :alt="`${product.model} by ${product.name}`"
                         class="h-full w-full object-cover"
                       />
                       <div
@@ -105,7 +105,8 @@
                     </div>
 
                     <div class="min-w-0 flex-1">
-                      <p class="font-semibold text-gray-900">{{ product.name }}</p>
+                      <p class="font-semibold text-gray-900">{{ product.model }}</p>
+                      <p class="text-sm text-gray-500">{{ product.name }}</p>
                       <p class="text-sm text-gray-500 line-clamp-2">
                         {{ product.description || 'No description' }}
                       </p>
@@ -198,6 +199,7 @@ const filteredProducts = computed(() => {
     const matchesSearch =
       !term ||
       String(product.productId ?? '').toLowerCase().includes(term) ||
+      String(product.model ?? '').toLowerCase().includes(term) ||
       String(product.name ?? '').toLowerCase().includes(term)
 
     const stock = Number(product.quantityInStock) || 0

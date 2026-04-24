@@ -23,7 +23,7 @@
       </div>
 
       <div>
-        <label class="block mb-1 font-medium">Name</label>
+        <label class="block mb-1 font-medium">Brand</label>
         <input v-model="form.name" class="w-full border rounded p-2" />
         <p v-if="errors.name" class="text-red-600 text-sm">{{ errors.name }}</p>
       </div>
@@ -134,7 +134,7 @@ const validate = () => {
 
   if (!form.productId) errors.productId = 'Product ID is required'
   if (!form.categoryId) errors.categoryId = 'Category is required'
-  if (!form.name) errors.name = 'Name is required'
+  if (!form.name) errors.name = 'Brand is required'
   if (!form.model) errors.model = 'Model is required'
   if (!form.serialNumber) errors.serialNumber = 'Serial number is required'
   if (!form.description) errors.description = 'Description is required'

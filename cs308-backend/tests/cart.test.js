@@ -64,7 +64,7 @@ describe("Cart API Endpoints", () => {
     expect(res.body.items).toHaveLength(1);
     expect(res.body.items[0]).toMatchObject({
       productId: "p001",
-      name: "Apple iPhone 15 Pro",
+      name: "iPhone 15 Pro",
       unitPrice: 1299,
       quantity: 2,
     });

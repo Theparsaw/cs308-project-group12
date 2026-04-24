@@ -21,7 +21,7 @@
           <img
             v-if="product.imageUrl"
             :src="product.imageUrl"
-            :alt="`${product.name} ${product.model}`"
+            :alt="`${product.model} by ${product.name}`"
             class="w-full h-full object-cover"
           />
           <div
@@ -33,7 +33,7 @@
         </div>
 
         <div class="w-full md:w-1/2 flex flex-col">
-          <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.name }}</h1>
+          <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.model }}</h1>
           <p class="text-2xl text-green-600 font-bold mb-2">${{ product.price?.toLocaleString() }}</p>
 
           <div class="mb-4 flex items-center gap-2 text-sm">
@@ -44,7 +44,7 @@
           <p class="text-gray-700 mb-6">{{ product.description }}</p>
 
           <div class="grid grid-cols-2 gap-4 mb-8 text-sm">
-            <div><strong class="text-gray-900">Model:</strong> <span class="text-gray-600">{{ product.model }}</span></div>
+            <div><strong class="text-gray-900">Brand:</strong> <span class="text-gray-600">{{ product.name }}</span></div>
             <div><strong class="text-gray-900">Category:</strong> <span class="text-gray-600">{{ product.categoryId }}</span></div>
             <div><strong class="text-gray-900">Stock:</strong> <span class="text-gray-600">{{ product.quantityInStock }}</span></div>
             <div><strong class="text-gray-900">Warranty:</strong> <span class="text-gray-600">{{ product.warrantyStatus }}</span></div>

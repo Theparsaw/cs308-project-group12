@@ -101,12 +101,12 @@ export const addGuestItemToCart = (product, quantity = 1) => {
   if (existingItem) {
     existingItem.quantity += quantity
     existingItem.unitPrice = product.price
-    existingItem.name = `${product.name} ${product.model}`
+    existingItem.name = product.model
     existingItem.imageUrl = product.imageUrl || ''
   } else {
     guestItems.push({
       productId: product.productId,
-      name: `${product.name} ${product.model}`,
+      name: product.model,
       imageUrl: product.imageUrl || '',
       unitPrice: product.price,
       quantity,
