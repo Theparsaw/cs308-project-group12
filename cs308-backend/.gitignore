@@ -1,3 +1,5 @@
 node_modules/
 .env
-cs308-backend/.env
+uploads/
+coverage/
+.DS_Store

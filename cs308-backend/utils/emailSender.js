@@ -20,7 +20,7 @@ const sendInvoiceEmail = async (toEmail, invoiceNumber, pdfBuffer) => {
       from: '"CS308 Store" <noreply@cs308store.com>',
       to: toEmail,
       subject: `Your Invoice for Order #${invoiceNumber} - CS308 Store`,
-      text: "Thank you for your purchase! Please find your invoice attached.",
+      text: "Thank you for choosing CS308 Store! Please find your invoice attached.",
       attachments: [
         {
           filename: `Invoice_${invoiceNumber}.pdf`,

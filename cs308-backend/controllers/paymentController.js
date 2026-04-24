@@ -1,269 +1,207 @@
-const User = require("../models/User");
-const Invoice = require("../models/Invoice");
-const { generateInvoicePDF } = require("../utils/invoiceGenerator");
-const { sendInvoiceEmail } = require("../utils/emailSender");
-
-const Payment = require("../models/Payment");
-const Order = require("../models/Order");
-const Product = require("../models/Product");
 const Cart = require("../models/Cart");
-const Delivery = require("../models/Delivery");
-const { serializeOrder } = require("../utils/orderTracking");
+const Product = require("../models/Product");
+const AppError = require("../utils/appError");
+const asyncHandler = require("../utils/asyncHandler");
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
+const calculateTotalPrice = (items) =>
+  items.reduce((total, item) => total + item.unitPrice * item.quantity, 0);
 
-const sanitizeCardNumber = (cardNumber = "") => cardNumber.replace(/\s+/g, "");
+const formatProductName = (product) => `${product.name} ${product.model}`;
 
-const isValidCardNumber = (cardNumber) => /^\d{16}$/.test(cardNumber);
-const isValidCvv = (cvv) => /^\d{3,4}$/.test(cvv);
+const serializeCart = (cart) => ({
+  cartId: cart.cartId,
+  items: cart.items,
+  totalPrice: cart.totalPrice,
+  totalItems: cart.items.reduce((count, item) => count + item.quantity, 0),
+  createdAt: cart.createdAt,
+  updatedAt: cart.updatedAt,
+});
 
-const isValidExpiry = (expiryMonth, expiryYear) => {
-  const month = Number(expiryMonth);
-  const year = Number(expiryYear);
+const getEmptyCartPayload = (cartId) => ({
+  cartId,
+  items: [],
+  totalPrice: 0,
+  totalItems: 0,
+});
 
-  if (!Number.isInteger(month) || month < 1 || month > 12) return false;
-  if (!Number.isInteger(year) || year < currentYear) return false;
-  if (year === currentYear && month < currentMonth) return false;
+const isValidQuantity = (quantity) =>
+  Number.isInteger(quantity) && quantity >= 1;
 
-  return true;
-};
-
-const simulatePaymentResult = (cardNumber) => {
-  const lastDigit = Number(cardNumber[cardNumber.length - 1]);
-  return lastDigit % 2 === 0;
-};
-
-const validateOrderStock = async (items) => {
-  for (const item of items) {
-    const product = await Product.findOne({ productId: item.productId });
-
-    if (!product) {
-      return {
-        valid: false,
-        message: `Product not found: ${item.productId}`,
-      };
-    }
-
-    if (product.quantityInStock < item.quantity) {
-      return {
-        valid: false,
-        message: `Not enough stock for ${item.name}`,
-        productId: item.productId,
-        availableStock: product.quantityInStock,
-      };
-    }
-  }
-
-  return { valid: true };
-};
-
-const getOrderForPayment = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-
-    const order = await Order.findById(orderId);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    if (order.userId !== req.user.id) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    const stockCheck = await validateOrderStock(order.items);
-
-    if (!stockCheck.valid) {
-      return res.status(400).json(stockCheck);
-    }
-
-    return res.status(200).json({
-      order: serializeOrder(order),
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Failed to fetch order",
-      error: error.message,
-    });
+const assertCartAccess = (cart, userId) => {
+  if (String(cart.userId) !== String(userId)) {
+    throw new AppError("You are not allowed to access this cart", 403, "FORBIDDEN");
   }
 };
 
-const processPayment = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { cardHolder, cardNumber, expiryMonth, expiryYear, cvv } = req.body;
-
-    if (!cardHolder || !cardNumber || !expiryMonth || !expiryYear || !cvv) {
-      return res.status(400).json({
-        message: "All payment fields are required",
-      });
-    }
-
-    const cleanedCardNumber = sanitizeCardNumber(cardNumber);
-
-    if (!isValidCardNumber(cleanedCardNumber)) {
-      return res.status(400).json({
-        message: "Card number must be 16 digits",
-      });
-    }
-
-    if (!isValidExpiry(expiryMonth, expiryYear)) {
-      return res.status(400).json({
-        message: "Card expiry date is invalid or expired",
-      });
-    }
-
-    if (!isValidCvv(cvv)) {
-      return res.status(400).json({
-        message: "CVV must be 3 or 4 digits",
-      });
-    }
-
-    const order = await Order.findById(orderId);
-
-    if (!order) {
-      return res.status(404).json({
-        message: "Order not found",
-      });
-    }
-
-    if (order.userId !== req.user.id) {
-      return res.status(403).json({
-        message: "Access denied",
-      });
-    }
-
-    if (order.status === "paid") {
-      return res.status(400).json({
-        message: "Order has already been paid",
-      });
-    }
-
-    const stockCheck = await validateOrderStock(order.items);
-
-    if (!stockCheck.valid) {
-      order.status = "payment_failed";
-      await order.save();
-
-      return res.status(400).json(stockCheck);
-    }
-
-    const success = simulatePaymentResult(cleanedCardNumber);
-
-    const payment = await Payment.create({
-      orderId: order._id.toString(),
-      userId: req.user.id,
-      amount: order.totalPrice,
-      status: success ? "success" : "failed",
-      cardLast4: cleanedCardNumber.slice(-4),
-      transactionId: `TXN-${Date.now()}`,
-      message: success ? "Payment completed successfully" : "Payment was declined",
-    });
-
-    if (success) {
-      for (const item of order.items) {
-        await Product.updateOne(
-          { productId: item.productId },
-          { $inc: { quantityInStock: -item.quantity } }
-        );
-      }
-
-      order.status = "paid";
-      order.paidAt = new Date();
-      await order.save();
-
-      const cart = await Cart.findOne({ cartId: order.cartId });
-      if (cart) {
-        cart.items = [];
-        cart.totalPrice = 0;
-        await cart.save();
-      }
-    // CREATE DELIVERY RECORD
-      try {
-        const delivery = await Delivery.create({
-          orderId: order._id.toString(),
-          userId: order.userId,
-          items: order.items,
-          totalPrice: order.totalPrice,
-          address: "Default address", // you can improve later
-          status: "processing",
-        });
-
-        // 🟢 NEW INVOICE LOGIC STARTS HERE 🟢
-        try {
-          // Fetch user details to get their name and email
-          const user = await User.findById(order.userId);
-          const invoiceNum = `INV-${order._id.toString().slice(-6).toUpperCase()}`;
-          
-          // 1. Generate PDF in memory buffer
-          const pdfBuffer = await generateInvoicePDF(order, user);
-          
-          // 2. Send the Email with the attached PDF
-          const emailSent = await sendInvoiceEmail(user.email, invoiceNum, pdfBuffer);
-          
-          // 3. Store the Invoice Record in the database
-          await Invoice.create({
-            orderId: order._id.toString(),
-            userId: order.userId,
-            invoiceNumber: invoiceNum,
-            amount: order.totalPrice,
-            status: emailSent ? "emailed" : "failed",
-          });
-        } catch (invoiceError) {
-          console.error("Invoice generation or emailing failed:", invoiceError);
-          // We swallow this error so the user still gets a success response 
-          // even if the email service is temporarily down.
-        }
-        // 🟢 NEW INVOICE LOGIC ENDS HERE 🟢
-
-        return res.status(200).json({
-          success: true,
-          message: "Payment completed successfully",
-          paymentStatus: payment.status,
-          delivery, // 👈 include delivery
-          order: serializeOrder(order),
-        });
-
-      } catch (deliveryError) {
-        console.error("Delivery creation failed:", deliveryError);
-
-        return res.status(200).json({
-          success: true,
-          message: "Payment succeeded but delivery creation failed",
-          paymentStatus: payment.status,
-          order: serializeOrder(order),
-        });
-      }
-    }
-
-    order.status = "payment_failed";
-    await order.save();
-
-    return res.status(200).json({
-      success: false,
-      message: "Payment was declined",
-      paymentStatus: payment.status,
-      payment: {
-        id: payment._id,
-        orderId: payment.orderId,
-        amount: payment.amount,
-        status: payment.status,
-        cardLast4: payment.cardLast4,
-        transactionId: payment.transactionId,
-        createdAt: payment.createdAt,
-      },
-      order: serializeOrder(order),
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Failed to process payment",
-      error: error.message,
-    });
+const claimLegacyCartIfNeeded = async (cart, userId) => {
+  if (!cart.userId) {
+    cart.userId = userId;
+    await cart.save();
   }
+  return cart;
 };
+
+const findOrCreateCart = async (cartId, userId) => {
+  let cart = await Cart.findOne({ cartId });
+
+  if (!cart) {
+    cart = await Cart.create({ cartId, userId, items: [], totalPrice: 0 });
+  } else {
+    await claimLegacyCartIfNeeded(cart, userId);
+    assertCartAccess(cart, userId);
+  }
+
+  return cart;
+};
+
+const getCart = asyncHandler(async (req, res) => {
+  const { cartId } = req.params;
+  const cart = await Cart.findOne({ cartId });
+
+  if (!cart) {
+    return res.status(200).json(getEmptyCartPayload(cartId));
+  }
+
+  await claimLegacyCartIfNeeded(cart, req.user.id);
+  assertCartAccess(cart, req.user.id);
+  return res.status(200).json(serializeCart(cart));
+});
+
+const addItemToCart = asyncHandler(async (req, res) => {
+  const { cartId } = req.params;
+  const { productId, quantity = 1 } = req.body;
+
+  if (!productId) {
+    throw new AppError("productId is required", 400, "VALIDATION_ERROR");
+  }
+
+  if (!isValidQuantity(quantity)) {
+    throw new AppError(
+      "Quantity must be an integer greater than 0",
+      400,
+      "VALIDATION_ERROR"
+    );
+  }
+
+  const product = await Product.findOne({ productId });
+
+  if (!product) {
+    throw new AppError("Product not found", 404, "PRODUCT_NOT_FOUND");
+  }
+
+  const cart = await findOrCreateCart(cartId, req.user.id);
+  const existingItem = cart.items.find((item) => item.productId === productId);
+  const nextQuantity = (existingItem?.quantity || 0) + quantity;
+
+  if (nextQuantity > product.quantityInStock) {
+    throw new AppError(
+      "Requested quantity exceeds available stock",
+      400,
+      "INSUFFICIENT_STOCK",
+      { availableStock: product.quantityInStock }
+    );
+  }
+
+  if (existingItem) {
+      existingItem.quantity = nextQuantity;
+      existingItem.unitPrice = product.price;
+      existingItem.name = formatProductName(product);
+      existingItem.imageUrl = product.imageUrl || "";
+    } else {
+      cart.items.push({
+        productId: product.productId,
+        name: formatProductName(product),
+        imageUrl: product.imageUrl || "",
+        unitPrice: product.price,
+        quantity,
+      });
+  }
+
+  cart.totalPrice = calculateTotalPrice(cart.items);
+  await cart.save();
+
+  return res.status(200).json(serializeCart(cart));
+});
+
+const updateCartItemQuantity = asyncHandler(async (req, res) => {
+  const { cartId, productId } = req.params;
+  const { quantity } = req.body;
+
+  if (!isValidQuantity(quantity)) {
+    throw new AppError(
+      "Quantity must be an integer greater than 0",
+      400,
+      "VALIDATION_ERROR"
+    );
+  }
+
+  const cart = await Cart.findOne({ cartId });
+
+  if (!cart) {
+    throw new AppError("Cart not found", 404, "CART_NOT_FOUND");
+  }
+
+  await claimLegacyCartIfNeeded(cart, req.user.id);
+  assertCartAccess(cart, req.user.id);
+  const item = cart.items.find((cartItem) => cartItem.productId === productId);
+
+  if (!item) {
+    throw new AppError("Cart item not found", 404, "CART_ITEM_NOT_FOUND");
+  }
+
+  const product = await Product.findOne({ productId });
+
+  if (!product) {
+    throw new AppError("Product not found", 404, "PRODUCT_NOT_FOUND");
+  }
+
+  if (quantity > product.quantityInStock) {
+    throw new AppError(
+      "Requested quantity exceeds available stock",
+      400,
+      "INSUFFICIENT_STOCK",
+      { availableStock: product.quantityInStock }
+    );
+  }
+
+  item.quantity = quantity;
+  item.unitPrice = product.price;
+  item.name = formatProductName(product);
+  item.imageUrl = product.imageUrl || "";
+  cart.totalPrice = calculateTotalPrice(cart.items);
+
+  await cart.save();
+
+  return res.status(200).json(serializeCart(cart));
+});
+
+const removeCartItem = asyncHandler(async (req, res) => {
+  const { cartId, productId } = req.params;
+  const cart = await Cart.findOne({ cartId });
+
+  if (!cart) {
+    throw new AppError("Cart not found", 404, "CART_NOT_FOUND");
+  }
+
+  await claimLegacyCartIfNeeded(cart, req.user.id);
+  assertCartAccess(cart, req.user.id);
+  const itemExists = cart.items.some((item) => item.productId === productId);
+
+  if (!itemExists) {
+    throw new AppError("Cart item not found", 404, "CART_ITEM_NOT_FOUND");
+  }
+
+  cart.items = cart.items.filter((item) => item.productId !== productId);
+  cart.totalPrice = calculateTotalPrice(cart.items);
+
+  await cart.save();
+
+  return res.status(200).json(serializeCart(cart));
+});
 
 module.exports = {
-  getOrderForPayment,
-  processPayment,
+  getCart,
+  addItemToCart,
+  updateCartItemQuantity,
+  removeCartItem,
 };
