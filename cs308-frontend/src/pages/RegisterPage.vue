@@ -82,8 +82,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerUser } from '../api/authApi'
-import { resetCartId } from '../api/cartApi'
+import { getCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
 import { authStore } from '../store/auth'
+import { cartStore } from '../store/cart'
+
+const CART_MERGE_ERROR_KEY = 'cart-merge-error'
 
 // Router lets us redirect the user after registration
 const router = useRouter()
@@ -97,6 +100,15 @@ const confirmPassword = ref('')
 // State for loading and error
 const loading = ref(false)
 const error = ref('')
+
+const syncCartTotalItems = async () => {
+  try {
+    const cartRes = await getCart()
+    cartStore.setTotalItems(cartRes.data?.totalItems)
+  } catch {
+    cartStore.clear()
+  }
+}
 
 const handleRegister = async () => {
   // Clear any previous error
@@ -127,6 +139,20 @@ const handleRegister = async () => {
     // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
     resetCartId()
+
+    try {
+      await mergeGuestCartIntoUserCart()
+      await syncCartTotalItems()
+    } catch (mergeError) {
+      const message =
+        mergeError?.response?.data?.message || 'Account created, but some cart items could not be restored.'
+
+      localStorage.setItem(CART_MERGE_ERROR_KEY, message)
+      await syncCartTotalItems()
+
+      router.push('/cart')
+      return
+    }
 
     // Redirect to home page after successful registration
     router.push('/')
