@@ -252,7 +252,7 @@
         </div>
       </div>
 
-      <div v-else class="space-y-6">
+      <div v-else-if="activeTab === 'orders'" class="space-y-6">
         <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -384,6 +384,95 @@
           </article>
         </div>
       </div>
+
+      <div v-else class="space-y-6">
+        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Invoices</h2>
+              <p class="text-sm text-gray-500">
+                View invoices for paid orders and download PDF copies.
+              </p>
+            </div>
+            <span class="text-sm font-medium text-gray-500">
+              {{ invoices.length }} {{ invoices.length === 1 ? 'invoice' : 'invoices' }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="invoicesLoading" class="rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-500 shadow-sm">
+          Loading your invoices...
+        </div>
+
+        <div
+          v-else-if="invoicesError"
+          class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 shadow-sm"
+        >
+          {{ invoicesError }}
+        </div>
+
+        <div
+          v-else-if="invoices.length === 0"
+          class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500 shadow-sm"
+        >
+          You have no invoices yet.
+        </div>
+
+        <div v-else class="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div class="hidden grid-cols-[1.1fr_1fr_0.7fr_0.8fr_0.8fr] gap-4 border-b border-gray-100 bg-gray-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 md:grid">
+            <span>Invoice</span>
+            <span>Order</span>
+            <span>Amount</span>
+            <span>Date</span>
+            <span class="text-right">PDF</span>
+          </div>
+
+          <div class="divide-y divide-gray-100">
+            <article
+              v-for="invoice in invoices"
+              :key="invoice.id"
+              class="grid gap-4 px-6 py-5 md:grid-cols-[1.1fr_1fr_0.7fr_0.8fr_0.8fr] md:items-center"
+            >
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Invoice</p>
+                <p class="font-semibold text-gray-900">{{ invoice.invoiceNumber }}</p>
+                <span
+                  class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+                  :class="getInvoiceStatusClass(invoice.status)"
+                >
+                  {{ formatInvoiceStatus(invoice.status) }}
+                </span>
+              </div>
+
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Order</p>
+                <p class="font-medium text-gray-800">#{{ invoice.orderId.slice(-8).toUpperCase() }}</p>
+              </div>
+
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Amount</p>
+                <p class="font-semibold text-gray-900">${{ Number(invoice.amount || 0).toLocaleString() }}</p>
+              </div>
+
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Date</p>
+                <p class="text-sm text-gray-600">{{ formatDate(invoice.createdAt) }}</p>
+              </div>
+
+              <div class="flex md:justify-end">
+                <button
+                  type="button"
+                  class="inline-flex items-center rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-300"
+                  :disabled="downloadingInvoiceId === invoice.id"
+                  @click="handleDownloadInvoice(invoice)"
+                >
+                  {{ downloadingInvoiceId === invoice.id ? 'Downloading...' : 'Download' }}
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -392,6 +481,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProfile, resolveAssetUrl, updateProfile } from '../api/authApi'
+import { downloadInvoice, getMyInvoices } from '../api/invoiceApi'
 import { getMyOrders } from '../api/orderApi'
 import { authStore } from '../store/auth'
 
@@ -401,6 +491,7 @@ const router = useRouter()
 const tabs = [
   { id: 'profile', label: 'Profile Details' },
   { id: 'orders', label: 'Order Tracking' },
+  { id: 'invoices', label: 'Invoices' },
 ]
 
 const user = ref({})
@@ -414,6 +505,10 @@ const photoError = ref('')
 const orders = ref([])
 const ordersLoading = ref(false)
 const ordersError = ref('')
+const invoices = ref([])
+const invoicesLoading = ref(false)
+const invoicesError = ref('')
+const downloadingInvoiceId = ref('')
 const photoInput = ref(null)
 const selectedPhotoFile = ref(null)
 const selectedPhotoPreview = ref('')
@@ -431,7 +526,11 @@ const form = ref({
   profileImage: '',
 })
 
-const activeTab = computed(() => (route.query.tab === 'orders' ? 'orders' : 'profile'))
+const activeTab = computed(() => {
+  if (route.query.tab === 'orders') return 'orders'
+  if (route.query.tab === 'invoices') return 'invoices'
+  return 'profile'
+})
 
 const displayProfileImage = computed(() => {
   if (isEditing.value && selectedPhotoPreview.value) {
@@ -450,8 +549,8 @@ const getProfileImageUrl = (value) => resolveAssetUrl(value)
 const setActiveTab = (tabId) => {
   const nextQuery = { ...route.query }
 
-  if (tabId === 'orders') {
-    nextQuery.tab = 'orders'
+  if (tabId === 'orders' || tabId === 'invoices') {
+    nextQuery.tab = tabId
   } else {
     delete nextQuery.tab
   }
@@ -484,6 +583,20 @@ const fetchOrders = async () => {
     ordersError.value = err?.response?.data?.message || 'Failed to load orders. Please try again.'
   } finally {
     ordersLoading.value = false
+  }
+}
+
+const fetchInvoices = async () => {
+  invoicesLoading.value = true
+  invoicesError.value = ''
+
+  try {
+    const res = await getMyInvoices()
+    invoices.value = res.data.invoices || []
+  } catch (err) {
+    invoicesError.value = err?.response?.data?.message || 'Failed to load invoices. Please try again.'
+  } finally {
+    invoicesLoading.value = false
   }
 }
 
@@ -537,6 +650,15 @@ const formatDeliveryStatus = (status) => {
   return labels[status] || status
 }
 
+const formatInvoiceStatus = (status) => {
+  const labels = {
+    generated: 'Generated',
+    emailed: 'Emailed',
+    failed: 'Email Failed',
+  }
+  return labels[status] || status
+}
+
 const getDeliveryBadgeClass = (status) => {
   const classes = {
     processing: 'bg-amber-100 text-amber-700',
@@ -546,6 +668,37 @@ const getDeliveryBadgeClass = (status) => {
     cancelled: 'bg-red-100 text-red-700',
   }
   return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
+const getInvoiceStatusClass = (status) => {
+  const classes = {
+    generated: 'bg-blue-100 text-blue-700',
+    emailed: 'bg-emerald-100 text-emerald-700',
+    failed: 'bg-amber-100 text-amber-700',
+  }
+  return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
+const handleDownloadInvoice = async (invoice) => {
+  downloadingInvoiceId.value = invoice.id
+  invoicesError.value = ''
+
+  try {
+    const res = await downloadInvoice(invoice.id)
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${invoice.invoiceNumber}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    invoicesError.value = err?.response?.data?.message || 'Failed to download invoice. Please try again.'
+  } finally {
+    downloadingInvoiceId.value = ''
+  }
 }
 
 const getTimelineDotClass = (state) => {
@@ -755,6 +908,10 @@ watch(
   (tab) => {
     if (tab === 'orders' && !ordersLoading.value) {
       fetchOrders()
+    }
+
+    if (tab === 'invoices' && !invoicesLoading.value) {
+      fetchInvoices()
     }
   },
   { immediate: true }
