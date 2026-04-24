@@ -34,7 +34,12 @@
 
         <div class="w-full md:w-1/2 flex flex-col">
           <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.name }}</h1>
-          <p class="text-2xl text-green-600 font-bold mb-4">${{ product.price?.toLocaleString() }}</p>
+          <p class="text-2xl text-green-600 font-bold mb-2">${{ product.price?.toLocaleString() }}</p>
+
+          <div class="mb-4 flex items-center gap-2 text-sm">
+            <span class="text-amber-500 font-semibold">{{ renderAverageStars(product.averageRating) }}</span>
+            <span class="text-gray-600">{{ formatAverageRating(product) }}</span>
+          </div>
           
           <p class="text-gray-700 mb-6">{{ product.description }}</p>
 
@@ -251,6 +256,18 @@ const resetReviewErrors = () => {
 
 const renderStars = (rating) => '★'.repeat(rating) + '☆'.repeat(5 - rating)
 
+const renderAverageStars = (rating) => {
+  const roundedRating = Math.round(Number(rating || 0))
+  return '★'.repeat(roundedRating) + '☆'.repeat(5 - roundedRating)
+}
+
+const formatAverageRating = (productValue) => {
+  const count = Number(productValue?.reviewCount || 0)
+  if (count === 0) return 'No ratings yet'
+
+  return `${Number(productValue.averageRating).toFixed(1)} average rating (${count} review${count === 1 ? '' : 's'})`
+}
+
 const formatReviewDate = (dateValue) => {
   if (!dateValue) return 'Unknown date'
 
@@ -274,6 +291,11 @@ const loadReviews = async () => {
   } finally {
     reviewsLoading.value = false
   }
+}
+
+const loadProduct = async () => {
+  const res = await getProductById(route.params.id)
+  product.value = res.data
 }
 
 const handleAddToCart = async () => {
@@ -324,7 +346,7 @@ const handleReviewSubmit = async () => {
     reviewForm.rating = ''
     reviewForm.comment = ''
     hoverRating.value = 0
-    await loadReviews()
+    await Promise.all([loadProduct(), loadReviews()])
   } catch (err) {
     const responseData = err?.response?.data
     const errors = responseData?.details || responseData?.errors || {}
@@ -342,11 +364,10 @@ const handleReviewSubmit = async () => {
 
 onMounted(async () => {
   try {
-    const [productRes] = await Promise.all([
-      getProductById(route.params.id),
+    await Promise.all([
+      loadProduct(),
       loadReviews(),
     ])
-    product.value = productRes.data
   } catch (err) {
     error.value = 'Failed to load product details.'
     console.error(err)

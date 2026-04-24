@@ -37,6 +37,11 @@
 
         <p class="text-sm text-gray-500 mt-1">{{ product.model }}</p>
 
+        <div class="mt-2 flex items-center gap-2 text-sm">
+          <span class="text-amber-500 font-semibold">{{ renderAverageStars(product.averageRating) }}</span>
+          <span class="text-gray-500">{{ formatAverageRating(product) }}</span>
+        </div>
+
         <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
           {{ product.description }}
         </p>
@@ -69,4 +74,19 @@ defineProps({
     required: true
   }
 })
+
+const hasRatings = (product) => Number(product?.reviewCount || 0) > 0
+
+const renderAverageStars = (rating) => {
+  const roundedRating = Math.round(Number(rating || 0))
+  return '★'.repeat(roundedRating) + '☆'.repeat(5 - roundedRating)
+}
+
+const formatAverageRating = (product) => {
+  if (!hasRatings(product)) return 'No ratings yet'
+
+  const average = Number(product.averageRating).toFixed(1)
+  const count = Number(product.reviewCount)
+  return `${average} (${count} review${count === 1 ? '' : 's'})`
+}
 </script>

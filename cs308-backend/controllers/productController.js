@@ -1,5 +1,6 @@
 const Product = require("../models/Product");
 const Order = require("../models/Order");
+const Review = require("../models/Review");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
 
@@ -68,6 +69,48 @@ const buildPopularityStages = () => [
   },
 ];
 
+const buildRatingStages = () => [
+  {
+    $lookup: {
+      from: Review.collection.name,
+      let: { currentProductId: "$productId" },
+      pipeline: [
+        {
+          $match: {
+            status: "approved",
+            $expr: {
+              $eq: ["$productId", "$$currentProductId"],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            averageRating: { $avg: "$rating" },
+            reviewCount: { $sum: 1 },
+          },
+        },
+      ],
+      as: "ratingStats",
+    },
+  },
+  {
+    $addFields: {
+      averageRating: {
+        $round: [{ $ifNull: [{ $first: "$ratingStats.averageRating" }, 0] }, 1],
+      },
+      reviewCount: {
+        $ifNull: [{ $first: "$ratingStats.reviewCount" }, 0],
+      },
+    },
+  },
+  {
+    $project: {
+      ratingStats: 0,
+    },
+  },
+];
+
 const buildSortStage = (sort, hasSearchScore = false) => {
   if (sort === "price_asc") return { $sort: { price: 1, createdAt: -1 } };
   if (sort === "price_desc") return { $sort: { price: -1, createdAt: -1 } };
@@ -93,6 +136,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
   if (!search) {
     const products = await Product.aggregate([
       ...buildPopularityStages(),
+      ...buildRatingStages(),
       buildSortStage(sort),
     ]);
     return res.status(200).json(products);
@@ -134,6 +178,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
       },
       { $addFields: { score: { $meta: "searchScore" } } },
       ...buildPopularityStages(),
+      ...buildRatingStages(),
       buildSortStage(sort, true),
     ]);
 
@@ -146,6 +191,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
     const fallbackResults = await Product.aggregate([
       { $match: fallbackFilter },
       ...buildPopularityStages(),
+      ...buildRatingStages(),
       buildSortStage(sort),
     ]);
     return res.status(200).json(fallbackResults);
@@ -156,6 +202,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
     const products = await Product.aggregate([
       { $match: fallbackFilter },
       ...buildPopularityStages(),
+      ...buildRatingStages(),
       buildSortStage(sort),
     ]);
     return res.status(200).json(products);
@@ -166,6 +213,7 @@ const getProductById = asyncHandler(async (req, res) => {
   const [product] = await Product.aggregate([
     { $match: { productId: req.params.id } },
     ...buildPopularityStages(),
+    ...buildRatingStages(),
   ]);
 
   if (!product) {
