@@ -212,7 +212,6 @@ const savingIds = ref(new Set())
 
 const allowedStatuses = [
   'processing',
-  'shipped',
   'out_for_delivery',
   'delivered',
   'cancelled',
@@ -284,7 +283,7 @@ const formatStatusLabel = (status) => {
     case 'delivered':
       return 'Delivered'
     case 'cancelled':
-      return 'Cancelled'
+      return 'Canceled'
     default:
       return status
   }

@@ -5,7 +5,6 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const ALLOWED_DELIVERY_STATUSES = [
   "processing",
-  "shipped",
   "out_for_delivery",
   "delivered",
   "cancelled",

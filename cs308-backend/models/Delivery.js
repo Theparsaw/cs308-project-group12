@@ -42,7 +42,6 @@ const deliverySchema = new mongoose.Schema(
       type: String,
       enum: [
         "processing",
-        "shipped",
         "out_for_delivery",
         "delivered",
         "cancelled",
