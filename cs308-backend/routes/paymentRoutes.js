@@ -7,6 +7,7 @@ const {
 
 const router = express.Router();
 
+// Notice we are using authMiddleware here, matching the import exactly!
 router.get("/order/:orderId", authMiddleware, getOrderForPayment);
 router.post("/:orderId", authMiddleware, processPayment);
 
