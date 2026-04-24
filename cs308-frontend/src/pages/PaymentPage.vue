@@ -190,6 +190,18 @@ const resultSuccess = ref(false)
 
 const orderId = route.params.orderId
 
+const isValidCardHolder = (cardHolder) => {
+  const normalizedName = cardHolder.trim().replace(/\s+/g, ' ')
+  const letterCount = (normalizedName.match(/\p{L}/gu) || []).length
+
+  return (
+    normalizedName.length >= 2 &&
+    normalizedName.length <= 60 &&
+    letterCount >= 2 &&
+    /^[\p{L}][\p{L}\s'.-]*$/u.test(normalizedName)
+  )
+}
+
 const setOrderState = (data) => {
   order.value = {
     id: data.id,
@@ -201,24 +213,42 @@ const setOrderState = (data) => {
 
 const validateForm = () => {
   const cardNumber = form.value.cardNumber.replace(/\s+/g, '')
+  const cardHolder = form.value.cardHolder.trim()
+  const expiryMonth = form.value.expiryMonth.trim()
+  const expiryYear = form.value.expiryYear.trim()
+  const cvv = form.value.cvv.trim()
 
-  if (!form.value.cardHolder || !cardNumber || !form.value.expiryMonth || !form.value.expiryYear || !form.value.cvv) {
+  if (!cardHolder || !cardNumber || !expiryMonth || !expiryYear || !cvv) {
     return 'All payment fields are required'
+  }
+
+  if (!isValidCardHolder(cardHolder)) {
+    return 'Cardholder name must contain only letters, spaces, apostrophes, hyphens, or periods'
   }
 
   if (!/^\d{16}$/.test(cardNumber)) {
     return 'Card number must be 16 digits'
   }
 
-  if (!/^\d{2}$/.test(form.value.expiryMonth) || Number(form.value.expiryMonth) < 1 || Number(form.value.expiryMonth) > 12) {
+  if (!/^\d{2}$/.test(expiryMonth) || Number(expiryMonth) < 1 || Number(expiryMonth) > 12) {
     return 'Expiry month must be between 01 and 12'
   }
 
-  if (!/^\d{4}$/.test(form.value.expiryYear)) {
+  if (!/^\d{4}$/.test(expiryYear)) {
     return 'Expiry year must be 4 digits'
   }
 
-  if (!/^\d{3,4}$/.test(form.value.cvv)) {
+  const expiryMonthNumber = Number(expiryMonth)
+  const expiryYearNumber = Number(expiryYear)
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+
+  if (expiryYearNumber < currentYear || (expiryYearNumber === currentYear && expiryMonthNumber < currentMonth)) {
+    return 'Card expiry date is invalid or expired'
+  }
+
+  if (!/^\d{3,4}$/.test(cvv)) {
     return 'CVV must be 3 or 4 digits'
   }
 
@@ -254,11 +284,11 @@ const handleSubmit = async () => {
 
   try {
     const payload = {
-      cardHolder: form.value.cardHolder,
-      cardNumber: form.value.cardNumber,
-      expiryMonth: form.value.expiryMonth,
-      expiryYear: form.value.expiryYear,
-      cvv: form.value.cvv,
+      cardHolder: form.value.cardHolder.trim().replace(/\s+/g, ' '),
+      cardNumber: form.value.cardNumber.replace(/\s+/g, ''),
+      expiryMonth: form.value.expiryMonth.trim(),
+      expiryYear: form.value.expiryYear.trim(),
+      cvv: form.value.cvv.trim(),
     }
 
     const res = await submitPayment(orderId, payload)

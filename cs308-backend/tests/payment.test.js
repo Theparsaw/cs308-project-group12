@@ -72,6 +72,26 @@ describe("Payment API", () => {
     expect(res.body.message).toBe("Card number must be 16 digits");
   });
 
+  test("POST /api/payments/:orderId returns 400 for invalid cardholder name", async () => {
+    const res = await request(app)
+      .post(`/api/payments/${fakeOrderId}`)
+      .set("Authorization", `Bearer ${customerToken}`)
+      .send({ ...validCard, cardHolder: "1234" });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe(
+      "Cardholder name must contain only letters, spaces, apostrophes, hyphens, or periods"
+    );
+  });
+
+  test("POST /api/payments/:orderId returns 400 for whitespace-only payment fields", async () => {
+    const res = await request(app)
+      .post(`/api/payments/${fakeOrderId}`)
+      .set("Authorization", `Bearer ${customerToken}`)
+      .send({ ...validCard, cardHolder: "   " });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toBe("All payment fields are required");
+  });
+
   test("POST /api/payments/:orderId returns 400 for expired card", async () => {
     const res = await request(app)
       .post(`/api/payments/${fakeOrderId}`)

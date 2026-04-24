@@ -12,17 +12,37 @@ const Cart = require("../models/Cart");
 const Delivery = require("../models/Delivery");
 const { serializeOrder } = require("../utils/orderTracking");
 
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
+const normalizeCardHolder = (cardHolder = "") =>
+  String(cardHolder).trim().replace(/\s+/g, " ");
 
-const sanitizeCardNumber = (cardNumber = "") => cardNumber.replace(/\s+/g, "");
+const sanitizeCardNumber = (cardNumber = "") => String(cardNumber).replace(/\s+/g, "");
 
+const isValidCardHolder = (cardHolder) => {
+  const normalizedName = normalizeCardHolder(cardHolder);
+  const letterCount = (normalizedName.match(/\p{L}/gu) || []).length;
+
+  return (
+    normalizedName.length >= 2 &&
+    normalizedName.length <= 60 &&
+    letterCount >= 2 &&
+    /^[\p{L}][\p{L}\s'.-]*$/u.test(normalizedName)
+  );
+};
 const isValidCardNumber = (cardNumber) => /^\d{16}$/.test(cardNumber);
-const isValidCvv = (cvv) => /^\d{3,4}$/.test(cvv);
+const isValidCvv = (cvv) => /^\d{3,4}$/.test(String(cvv));
 
 const isValidExpiry = (expiryMonth, expiryYear) => {
-  const month = Number(expiryMonth);
-  const year = Number(expiryYear);
+  const monthText = String(expiryMonth).trim();
+  const yearText = String(expiryYear).trim();
+
+  if (!/^\d{2}$/.test(monthText)) return false;
+  if (!/^\d{4}$/.test(yearText)) return false;
+
+  const month = Number(monthText);
+  const year = Number(yearText);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
   if (!Number.isInteger(month) || month < 1 || month > 12) return false;
   if (!Number.isInteger(year) || year < currentYear) return false;
@@ -95,14 +115,23 @@ const processPayment = async (req, res) => {
   try {
     const { orderId } = req.params;
     const { cardHolder, cardNumber, expiryMonth, expiryYear, cvv } = req.body;
+    const normalizedCardHolder = normalizeCardHolder(cardHolder);
+    const cleanedCardNumber = sanitizeCardNumber(cardNumber);
+    const normalizedExpiryMonth = String(expiryMonth ?? "").trim();
+    const normalizedExpiryYear = String(expiryYear ?? "").trim();
+    const normalizedCvv = String(cvv ?? "").trim();
 
-    if (!cardHolder || !cardNumber || !expiryMonth || !expiryYear || !cvv) {
+    if (!normalizedCardHolder || !cleanedCardNumber || !normalizedExpiryMonth || !normalizedExpiryYear || !normalizedCvv) {
       return res.status(400).json({
         message: "All payment fields are required",
       });
     }
 
-    const cleanedCardNumber = sanitizeCardNumber(cardNumber);
+    if (!isValidCardHolder(normalizedCardHolder)) {
+      return res.status(400).json({
+        message: "Cardholder name must contain only letters, spaces, apostrophes, hyphens, or periods",
+      });
+    }
 
     if (!isValidCardNumber(cleanedCardNumber)) {
       return res.status(400).json({
@@ -110,13 +139,13 @@ const processPayment = async (req, res) => {
       });
     }
 
-    if (!isValidExpiry(expiryMonth, expiryYear)) {
+    if (!isValidExpiry(normalizedExpiryMonth, normalizedExpiryYear)) {
       return res.status(400).json({
         message: "Card expiry date is invalid or expired",
       });
     }
 
-    if (!isValidCvv(cvv)) {
+    if (!isValidCvv(normalizedCvv)) {
       return res.status(400).json({
         message: "CVV must be 3 or 4 digits",
       });

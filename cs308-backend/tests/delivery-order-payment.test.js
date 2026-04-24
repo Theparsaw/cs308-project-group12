@@ -159,6 +159,28 @@ describe("payment, delivery, and tracking coverage", () => {
       });
     });
 
+    test("returns 400 for an invalid cardholder name", async () => {
+      const req = {
+        params: { orderId: "order-1" },
+        body: {
+          cardHolder: "1234",
+          cardNumber: "4242424242424242",
+          expiryMonth: "12",
+          expiryYear: "2099",
+          cvv: "123",
+        },
+        user: { id: "user-1" },
+      };
+      const res = createRes();
+
+      await processPayment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Cardholder name must contain only letters, spaces, apostrophes, hyphens, or periods",
+      });
+    });
+
     test("returns 400 for an expired card", async () => {
       const req = {
         params: { orderId: "order-1" },
