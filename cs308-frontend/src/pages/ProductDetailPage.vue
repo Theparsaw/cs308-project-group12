@@ -76,7 +76,7 @@
         </div>
       </div>
 
-      <section class="bg-white border rounded-xl p-8 shadow-sm">
+      <section ref="reviewSection" class="bg-white border rounded-xl p-8 shadow-sm">
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
             <h2 class="text-2xl font-semibold text-gray-900">Customer Reviews</h2>
@@ -120,7 +120,7 @@
         </div>
       </section>
 
-      <section class="bg-white border rounded-xl p-8 shadow-sm">
+      <section v-if="!ownApprovedReview || isEditingReview" class="bg-white border rounded-xl p-8 shadow-sm">
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
             <h2 class="text-2xl font-semibold text-gray-900">{{ isEditingReview ? 'Edit Your Review' : 'Write a Review' }}</h2>
@@ -211,12 +211,19 @@
           </div>
         </form>
       </section>
+
+      <section v-else class="bg-white border rounded-xl p-8 shadow-sm">
+        <h2 class="text-2xl font-semibold text-gray-900">Your Review</h2>
+        <p class="mt-2 text-sm text-gray-500">
+          You have already reviewed this product. Use the Edit button on your review above to update it.
+        </p>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, nextTick, reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { addGuestItemToCart, addItemToCart } from '../api/cartApi'
 import { getProductById } from '../api/productApi'
@@ -234,6 +241,7 @@ const quantity = ref(1)
 const reviews = ref([])
 const reviewsLoading = ref(true)
 const reviewsError = ref('')
+const reviewSection = ref(null)
 
 const addingToCart = ref(false)
 const cartMessage = ref('')
@@ -288,6 +296,8 @@ const resetReviewForm = () => {
 
 const isOwnReview = (review) =>
   authStore.isLoggedIn && currentUserId.value && String(review.userId) === currentUserId.value
+
+const ownApprovedReview = computed(() => reviews.value.find((review) => isOwnReview(review)))
 
 const startReviewEdit = (review) => {
   editingReviewId.value = review._id
@@ -348,6 +358,13 @@ const loadReviews = async () => {
 const loadProduct = async () => {
   const res = await getProductById(route.params.id)
   product.value = res.data
+}
+
+const focusReviewFormFromRoute = async () => {
+  if (route.query.review !== '1') return
+
+  await nextTick()
+  reviewSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 const handleAddToCart = async () => {
@@ -425,6 +442,7 @@ onMounted(async () => {
       loadProduct(),
       loadReviews(),
     ])
+    await focusReviewFormFromRoute()
   } catch (err) {
     error.value = 'Failed to load product details.'
     console.error(err)

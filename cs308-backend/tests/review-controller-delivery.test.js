@@ -295,6 +295,45 @@ describe("updateReview", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test("keeps an approved comment review approved when only the rating changes", async () => {
+    const reviewId = new mongoose.Types.ObjectId().toString();
+    const review = {
+      _id: reviewId,
+      userId: "user-1",
+      productId: "p001",
+      rating: 3,
+      comment: "Original review comment.",
+      status: "approved",
+      save: jest.fn().mockResolvedValue(true),
+    };
+
+    Review.findById.mockResolvedValue(review);
+
+    const req = {
+      user: { id: "user-1" },
+      params: { id: reviewId },
+      body: {
+        rating: 5,
+        comment: "Original review comment.",
+      },
+    };
+    const res = createRes();
+    const next = jest.fn();
+
+    await updateReview(req, res, next);
+
+    expect(review.rating).toBe(5);
+    expect(review.comment).toBe("Original review comment.");
+    expect(review.status).toBe("approved");
+    expect(review.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Rating updated successfully.",
+      review,
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test("rejects edits to another user's review", async () => {
     const reviewId = new mongoose.Types.ObjectId().toString();
     const review = {

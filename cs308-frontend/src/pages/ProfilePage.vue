@@ -335,15 +335,23 @@
                     :key="`${order.id}-${item.productId}`"
                     class="flex items-start justify-between gap-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4"
                   >
-                    <div>
+                    <div class="min-w-0">
                       <p class="font-semibold text-gray-900">{{ item.name }}</p>
                       <p class="mt-1 text-sm text-gray-500">Product ID: {{ item.productId }}</p>
                     </div>
-                    <div class="text-right text-sm text-gray-600">
+                    <div class="flex shrink-0 flex-col items-end gap-3 text-right text-sm text-gray-600">
                       <p>Qty {{ item.quantity }}</p>
                       <p class="mt-1 font-semibold text-gray-900">
                         ${{ Number(item.unitPrice * item.quantity).toLocaleString() }}
                       </p>
+                      <button
+                        type="button"
+                        class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+                        :disabled="order.deliveryStatus !== 'delivered'"
+                        @click="goToProductReview(item.productId)"
+                      >
+                        {{ order.deliveryStatus === 'delivered' ? 'Leave Review' : 'Available after delivery' }}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -702,6 +710,13 @@ const getInvoiceStatusClass = (status) => {
     failed: 'bg-amber-100 text-amber-700',
   }
   return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
+const goToProductReview = (productId) => {
+  router.push({
+    path: `/products/${productId}`,
+    query: { review: '1' },
+  })
 }
 
 const handleDownloadInvoice = async (invoice) => {

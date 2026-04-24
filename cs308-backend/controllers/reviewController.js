@@ -22,6 +22,17 @@ const normalizeComment = (comment) => String(comment ?? "").trim();
 const getReviewStatusForComment = (comment) =>
   normalizeComment(comment) ? "pending" : "approved";
 
+const getReviewStatusForUpdate = (review, nextComment) => {
+  const normalizedNextComment = normalizeComment(nextComment);
+
+  if (!normalizedNextComment) return "approved";
+  if (normalizedNextComment === normalizeComment(review.comment)) {
+    return review.status;
+  }
+
+  return "pending";
+};
+
 const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
   const { requireProductId = true } = options;
   const errors = {};
@@ -253,8 +264,8 @@ const updateReview = asyncHandler(async (req, res) => {
   }
 
   review.rating = Number(rating);
+  review.status = getReviewStatusForUpdate(review, normalizedComment);
   review.comment = normalizedComment;
-  review.status = getReviewStatusForComment(normalizedComment);
   await review.save();
 
   return res.status(200).json({
