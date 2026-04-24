@@ -103,7 +103,17 @@
                 <h3 class="font-semibold text-gray-900">{{ review.reviewerName }}</h3>
                 <p class="text-sm text-gray-500">{{ formatReviewDate(review.createdAt) }}</p>
               </div>
-              <div class="text-amber-500 font-semibold">{{ renderStars(review.rating) }}</div>
+              <div class="flex items-center gap-3">
+                <button
+                  v-if="isOwnReview(review)"
+                  type="button"
+                  @click="startReviewEdit(review)"
+                  class="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
+                >
+                  Edit
+                </button>
+                <div class="text-amber-500 font-semibold">{{ renderStars(review.rating) }}</div>
+              </div>
             </div>
             <p class="mt-3 text-gray-700 whitespace-pre-line">{{ review.comment }}</p>
           </article>
@@ -113,9 +123,10 @@
       <section class="bg-white border rounded-xl p-8 shadow-sm">
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 class="text-2xl font-semibold text-gray-900">Write a Review</h2>
+            <h2 class="text-2xl font-semibold text-gray-900">{{ isEditingReview ? 'Edit Your Review' : 'Write a Review' }}</h2>
             <p class="text-sm text-gray-500 mt-1" v-if="authStore.isLoggedIn">
-              You can review this product only if you have purchased it before. A rating may be accepted immediately, while comments may require approval before being shown publicly.
+              <span v-if="isEditingReview">Rating-only edits go live immediately. Comment edits require product manager approval.</span>
+              <span v-else>You can review this product only after delivery. Ratings without comments go live immediately; comments require approval.</span>
             </p>
             <p class="text-sm text-gray-500 mt-1" v-else>
               Log in to submit a review.
@@ -179,14 +190,25 @@
 
           <p v-if="reviewErrors.general" class="text-sm text-red-600">{{ reviewErrors.general }}</p>
 
-          <button
-            type="submit"
-            class="bg-slate-900 text-white px-5 py-3 rounded-lg font-semibold hover:bg-slate-800 disabled:bg-slate-400"
-            :disabled="submittingReview || !authStore.isLoggedIn"
-          >
-            <span v-if="submittingReview">Submitting...</span>
-            <span v-else>Submit Review</span>
-          </button>
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              class="bg-slate-900 text-white px-5 py-3 rounded-lg font-semibold hover:bg-slate-800 disabled:bg-slate-400"
+              :disabled="submittingReview || !authStore.isLoggedIn"
+            >
+              <span v-if="submittingReview">{{ isEditingReview ? 'Updating...' : 'Submitting...' }}</span>
+              <span v-else>{{ isEditingReview ? 'Update Review' : 'Submit Review' }}</span>
+            </button>
+            <button
+              v-if="isEditingReview"
+              type="button"
+              @click="cancelReviewEdit"
+              class="rounded-lg border border-gray-200 px-5 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+              :disabled="submittingReview"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </section>
     </div>
@@ -194,11 +216,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { addGuestItemToCart, addItemToCart } from '../api/cartApi'
 import { getProductById } from '../api/productApi'
-import { createReview, getApprovedReviewsByProductId } from '../api/reviewApi'
+import { createReview, getApprovedReviewsByProductId, updateReview } from '../api/reviewApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
@@ -220,6 +242,7 @@ const submittingReview = ref(false)
 const reviewMessage = ref('')
 const reviewMessageTone = ref('success')
 const hoverRating = ref(0)
+const editingReviewId = ref('')
 
 const reviewForm = reactive({
   rating: '',
@@ -231,6 +254,9 @@ const reviewErrors = reactive({
   comment: '',
   general: '',
 })
+
+const currentUserId = computed(() => String(authStore.user?.id || authStore.user?._id || ''))
+const isEditingReview = computed(() => Boolean(editingReviewId.value))
 
 const goBack = () => {
   router.push('/products')
@@ -252,6 +278,32 @@ const resetReviewErrors = () => {
   reviewErrors.rating = ''
   reviewErrors.comment = ''
   reviewErrors.general = ''
+}
+
+const resetReviewForm = () => {
+  reviewForm.rating = ''
+  reviewForm.comment = ''
+  hoverRating.value = 0
+}
+
+const isOwnReview = (review) =>
+  authStore.isLoggedIn && currentUserId.value && String(review.userId) === currentUserId.value
+
+const startReviewEdit = (review) => {
+  editingReviewId.value = review._id
+  reviewForm.rating = String(review.rating)
+  reviewForm.comment = review.comment || ''
+  reviewMessage.value = ''
+  reviewMessageTone.value = 'success'
+  resetReviewErrors()
+}
+
+const cancelReviewEdit = () => {
+  editingReviewId.value = ''
+  resetReviewForm()
+  resetReviewErrors()
+  reviewMessage.value = ''
+  reviewMessageTone.value = 'success'
 }
 
 const renderStars = (rating) => '★'.repeat(rating) + '☆'.repeat(5 - rating)
@@ -340,12 +392,17 @@ const handleReviewSubmit = async () => {
       comment: reviewForm.comment.trim(),
     }
 
-    const res = await createReview(payload)
-    reviewMessage.value = res.data?.message || 'Review submitted successfully.'
+    const res = isEditingReview.value
+      ? await updateReview(editingReviewId.value, {
+          rating: payload.rating,
+          comment: payload.comment,
+        })
+      : await createReview(payload)
+
+    reviewMessage.value = res.data?.message || (isEditingReview.value ? 'Review updated successfully.' : 'Review submitted successfully.')
     reviewMessageTone.value = 'success'
-    reviewForm.rating = ''
-    reviewForm.comment = ''
-    hoverRating.value = 0
+    editingReviewId.value = ''
+    resetReviewForm()
     await Promise.all([loadProduct(), loadReviews()])
   } catch (err) {
     const responseData = err?.response?.data

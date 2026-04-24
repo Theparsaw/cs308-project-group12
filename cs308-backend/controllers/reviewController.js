@@ -2,6 +2,7 @@ const Product = require("../models/Product");
 const Review = require("../models/Review");
 const User = require("../models/User");
 const Order = require("../models/Order");
+const Delivery = require("../models/Delivery");
 const mongoose = require("mongoose");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -18,11 +19,15 @@ const isValidRating = (rating) => {
 
 const normalizeComment = (comment) => String(comment ?? "").trim();
 
-const validateReviewInput = ({ productId, rating, comment }) => {
+const getReviewStatusForComment = (comment) =>
+  normalizeComment(comment) ? "pending" : "approved";
+
+const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
+  const { requireProductId = true } = options;
   const errors = {};
   const normalizedComment = normalizeComment(comment);
 
-  if (!productId || !String(productId).trim()) {
+  if (requireProductId && (!productId || !String(productId).trim())) {
     errors.productId = "productId is required";
   }
 
@@ -155,16 +160,107 @@ const createReview = asyncHandler(async (req, res) => {
     );
   }
 
+  const deliveredOrderIds = await Delivery.distinct("orderId", {
+    userId: String(userId).trim(),
+    status: "delivered",
+    items: {
+      $elemMatch: {
+        productId: trimmedProductId,
+      },
+    },
+  });
+
+  const validDeliveredOrderIds = deliveredOrderIds.filter((orderId) =>
+    mongoose.Types.ObjectId.isValid(orderId)
+  );
+
+  const hasDeliveredPurchasedProduct =
+    validDeliveredOrderIds.length > 0 &&
+    (await Order.exists({
+      _id: { $in: validDeliveredOrderIds },
+      userId: String(userId).trim(),
+      status: "paid",
+      items: {
+        $elemMatch: {
+          productId: trimmedProductId,
+        },
+      },
+    }));
+
+  if (!hasDeliveredPurchasedProduct) {
+    throw new AppError(
+      "You can only review products after they have been delivered",
+      403,
+      "DELIVERY_REQUIRED",
+      {
+        productId: "You can only review products after they have been delivered",
+      }
+    );
+  }
+
   const review = await Review.create({
     userId,
     productId: trimmedProductId,
     rating: ratingNumber,
     comment: normalizedComment,
-    status: "approved",
+    status: getReviewStatusForComment(normalizedComment),
   });
 
   return res.status(201).json({
-    message: "Review submitted successfully.",
+    message: review.status === "pending"
+      ? "Review submitted for approval."
+      : "Rating submitted successfully.",
+    review,
+  });
+});
+
+// PATCH /api/reviews/:id
+// Expected body:
+// { rating: 1-5 (int), comment?: string }
+const updateReview = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const { id } = req.params;
+  const { rating, comment } = req.body;
+
+  if (!userId) {
+    throw new AppError("Authentication required", 401, "AUTH_REQUIRED");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError("Review not found", 404, "REVIEW_NOT_FOUND");
+  }
+
+  const { errors, normalizedComment } = validateReviewInput(
+    {
+      rating,
+      comment,
+    },
+    { requireProductId: false }
+  );
+
+  if (Object.keys(errors).length > 0) {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", errors);
+  }
+
+  const review = await Review.findById(id);
+
+  if (!review) {
+    throw new AppError("Review not found", 404, "REVIEW_NOT_FOUND");
+  }
+
+  if (String(review.userId) !== String(userId)) {
+    throw new AppError("You can only edit your own review", 403, "FORBIDDEN");
+  }
+
+  review.rating = Number(rating);
+  review.comment = normalizedComment;
+  review.status = getReviewStatusForComment(normalizedComment);
+  await review.save();
+
+  return res.status(200).json({
+    message: review.status === "pending"
+      ? "Review update submitted for approval."
+      : "Rating updated successfully.",
     review,
   });
 });
@@ -172,4 +268,5 @@ const createReview = asyncHandler(async (req, res) => {
 module.exports = {
   getApprovedReviewsForProduct,
   createReview,
+  updateReview,
 };

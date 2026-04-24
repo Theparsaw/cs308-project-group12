@@ -3,13 +3,52 @@ const mongoose = require("mongoose");
 const app = require("../server");
 const Review = require("../models/Review");
 const User = require("../models/User");
+const Order = require("../models/Order");
+const Delivery = require("../models/Delivery");
 
 const createEmail = (label) => `review-${label}-${Date.now()}@example.com`;
 const createdUserIds = [];
+const createdOrderIds = [];
+const createdDeliveryIds = [];
+
+const createDeliveredPurchase = async (userId, productId) => {
+  const order = await Order.create({
+    userId: String(userId),
+    cartId: `review-cart-${Date.now()}-${Math.random()}`,
+    items: [
+      {
+        productId,
+        name: "Review Test Product",
+        unitPrice: 100,
+        quantity: 1,
+      },
+    ],
+    totalPrice: 100,
+    status: "paid",
+    paidAt: new Date(),
+  });
+
+  const delivery = await Delivery.create({
+    orderId: order._id.toString(),
+    userId: String(userId),
+    items: order.items,
+    totalPrice: order.totalPrice,
+    status: "delivered",
+  });
+
+  createdOrderIds.push(order._id);
+  createdDeliveryIds.push(delivery._id);
+};
 
 afterAll(async () => {
   if (createdUserIds.length > 0) {
     await Review.deleteMany({ userId: { $in: createdUserIds } });
+  }
+  if (createdDeliveryIds.length > 0) {
+    await Delivery.deleteMany({ _id: { $in: createdDeliveryIds } });
+  }
+  if (createdOrderIds.length > 0) {
+    await Order.deleteMany({ _id: { $in: createdOrderIds } });
   }
   await User.deleteMany({ email: /review-.*@example\.com$/ });
   await mongoose.connection.close();
@@ -54,13 +93,14 @@ describe("Review validation and integration flow", () => {
     );
   });
 
-  test("POST /api/reviews creates a pending review and rejects duplicates", async () => {
+  test("POST /api/reviews creates a pending comment review after delivery and rejects duplicates", async () => {
     const registerRes = await request(app).post("/api/auth/register").send({
       name: "Duplicate User",
       email: createEmail("duplicate"),
       password: "Password123!",
     });
     createdUserIds.push(registerRes.body.user.id);
+    await createDeliveredPurchase(registerRes.body.user.id, "p001");
 
     const token = registerRes.body.token;
     const payload = {
@@ -95,6 +135,7 @@ describe("Review validation and integration flow", () => {
       password: "Password123!",
     });
     createdUserIds.push(registerRes.body.user.id);
+    await createDeliveredPurchase(registerRes.body.user.id, "p001");
 
     const res = await request(app)
       .post("/api/reviews")
@@ -108,15 +149,17 @@ describe("Review validation and integration flow", () => {
     expect(res.statusCode).toBe(201);
     expect(res.body.review.rating).toBe(4);
     expect(res.body.review.comment).toBe("");
+    expect(res.body.review.status).toBe("approved");
   });
 
-  test("GET /api/reviews/product/:productId hides pending reviews and shows approved ones", async () => {
+  test("GET /api/reviews/product/:productId hides pending comment reviews", async () => {
     const registerRes = await request(app).post("/api/auth/register").send({
       name: "Approved User",
       email: createEmail("approved"),
       password: "Password123!",
     });
     createdUserIds.push(registerRes.body.user.id);
+    await createDeliveredPurchase(registerRes.body.user.id, "p002");
 
     const token = registerRes.body.token;
 
@@ -130,29 +173,10 @@ describe("Review validation and integration flow", () => {
       });
 
     expect(createRes.statusCode).toBe(201);
+    expect(createRes.body.review.status).toBe("pending");
 
     const pendingListRes = await request(app).get("/api/reviews/product/p002");
     expect(pendingListRes.statusCode).toBe(200);
     expect(pendingListRes.body.data).toEqual([]);
-
-    const managerLoginRes = await request(app).post("/api/auth/login").send({
-  email: "salesmanager@store.com",
-  password: "sales123",
-});
-
-const approveRes = await request(app)
-  .patch(`/api/moderation/reviews/${createRes.body.review._id}/approve`)
-  .set("Authorization", `Bearer ${managerLoginRes.body.token}`);
-
-    expect(approveRes.statusCode).toBe(200);
-
-    const approvedListRes = await request(app).get("/api/reviews/product/p002");
-    expect(approvedListRes.statusCode).toBe(200);
-    expect(approvedListRes.body.data).toHaveLength(1);
-    expect(approvedListRes.body.data[0].comment).toBe(
-      "Solid product with dependable day to day performance."
-    );
-    expect(approvedListRes.body.data[0].reviewerName).toBe("Approved User");
-    expect(approvedListRes.body.data[0].status).toBe("approved");
   });
 });

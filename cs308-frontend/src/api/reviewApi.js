@@ -11,6 +11,13 @@ export const createReview = (data) =>
     },
   })
 
+export const updateReview = (id, data) =>
+  api.patch(`/reviews/${id}`, data, {
+    headers: {
+      Authorization: `Bearer ${authStore.token}`,
+    },
+  })
+
 export const getPendingReviews = () =>
   api.get('/moderation/reviews/pending')
 

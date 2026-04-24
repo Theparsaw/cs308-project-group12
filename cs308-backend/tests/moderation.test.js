@@ -7,18 +7,18 @@ const User = require("../models/User");
 
 const createEmail = (label) => `mod-${label}-${Date.now()}@example.com`;
 const createdUserIds = [];
-let managerToken;
+let productManagerToken;
 let customerToken;
 let testReviewId;
 let testUserId;
 
 beforeAll(async () => {
-  // Login as sales manager
+  // Login as product manager
   const managerRes = await request(app).post("/api/auth/login").send({
-    email: "salesmanager@store.com",
-    password: "sales123",
+    email: "productmanager@store.com",
+    password: "product123",
   });
-  managerToken = managerRes.body.token;
+  productManagerToken = managerRes.body.token;
 
   // Register a regular customer
   const customerRes = await request(app).post("/api/auth/register").send({
@@ -64,10 +64,10 @@ describe("Moderation API", () => {
     expect(res.statusCode).toBe(403);
   });
 
-  test("GET /api/moderation/reviews/pending works for manager", async () => {
+  test("GET /api/moderation/reviews/pending works for product manager", async () => {
     const res = await request(app)
       .get("/api/moderation/reviews/pending")
-      .set("Authorization", `Bearer ${managerToken}`);
+      .set("Authorization", `Bearer ${productManagerToken}`);
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
   });
@@ -86,10 +86,10 @@ describe("Moderation API", () => {
     expect(res.statusCode).toBe(403);
   });
 
-  test("PATCH /api/moderation/reviews/:id/approve works for manager", async () => {
+  test("PATCH /api/moderation/reviews/:id/approve works for product manager", async () => {
     const res = await request(app)
       .patch(`/api/moderation/reviews/${testReviewId}/approve`)
-      .set("Authorization", `Bearer ${managerToken}`);
+      .set("Authorization", `Bearer ${productManagerToken}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -111,7 +111,7 @@ describe("Moderation API", () => {
     await Review.findByIdAndDelete(review._id);
   });
 
-  test("PATCH /api/moderation/reviews/:id/reject works for manager", async () => {
+  test("PATCH /api/moderation/reviews/:id/reject works for product manager", async () => {
     const review = await Review.create({
       userId: testUserId,
       productId: "p003",
@@ -122,7 +122,7 @@ describe("Moderation API", () => {
 
     const res = await request(app)
       .patch(`/api/moderation/reviews/${review._id}/reject`)
-      .set("Authorization", `Bearer ${managerToken}`);
+      .set("Authorization", `Bearer ${productManagerToken}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
 
@@ -134,7 +134,7 @@ describe("Moderation API", () => {
     const fakeId = new mongoose.Types.ObjectId();
     const res = await request(app)
       .patch(`/api/moderation/reviews/${fakeId}/approve`)
-      .set("Authorization", `Bearer ${managerToken}`);
+      .set("Authorization", `Bearer ${productManagerToken}`);
     expect(res.statusCode).toBe(404);
   });
 });
