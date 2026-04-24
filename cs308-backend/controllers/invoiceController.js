@@ -1,5 +1,6 @@
 const Invoice = require("../models/Invoice");
 const Order = require("../models/Order");
+const User = require("../models/User");
 const { generateInvoicePDF } = require("../utils/invoiceGenerator");
 
 const serializeInvoice = (invoice) => ({
@@ -52,7 +53,13 @@ const downloadInvoice = async (req, res) => {
       return res.status(404).json({ message: "Paid order for this invoice was not found" });
     }
 
-    const pdfBuffer = await generateInvoicePDF(order, req.user);
+    const user = await User.findById(req.user.id).select("name email address");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const pdfBuffer = await generateInvoicePDF(order, user);
     const safeInvoiceNumber = invoice.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_");
 
     res.setHeader("Content-Type", "application/pdf");

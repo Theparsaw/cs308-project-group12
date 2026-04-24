@@ -22,6 +22,7 @@ const generateInvoicePDF = (order, user) => {
       doc.fontSize(12).text("Billed To:");
       doc.fontSize(10).text(`Name: ${user.name}`);
       doc.text(`Email: ${user.email}`);
+      doc.text(`Address: ${user.address || "Not provided"}`);
       doc.moveDown(2);
 
       // Items Table

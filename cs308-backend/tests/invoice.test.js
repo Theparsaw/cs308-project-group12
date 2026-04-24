@@ -7,12 +7,17 @@ jest.mock("../models/Order", () => ({
   findOne: jest.fn(),
 }));
 
+jest.mock("../models/User", () => ({
+  findById: jest.fn(),
+}));
+
 jest.mock("../utils/invoiceGenerator", () => ({
   generateInvoicePDF: jest.fn(),
 }));
 
 const Invoice = require("../models/Invoice");
 const Order = require("../models/Order");
+const User = require("../models/User");
 const { generateInvoicePDF } = require("../utils/invoiceGenerator");
 const {
   downloadInvoice,
@@ -93,9 +98,16 @@ describe("invoiceController", () => {
       status: "paid",
     };
     const pdfBuffer = Buffer.from("pdf");
+    const user = {
+      id: "user-1",
+      name: "Test User",
+      email: "test@example.com",
+      address: "123 Test Street",
+    };
 
     Invoice.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(invoice) });
     Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(order) });
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
     generateInvoicePDF.mockResolvedValue(pdfBuffer);
 
     const req = {
@@ -115,7 +127,8 @@ describe("invoiceController", () => {
       userId: "user-1",
       status: "paid",
     });
-    expect(generateInvoicePDF).toHaveBeenCalledWith(order, req.user);
+    expect(User.findById).toHaveBeenCalledWith("user-1");
+    expect(generateInvoicePDF).toHaveBeenCalledWith(order, user);
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "application/pdf");
     expect(res.setHeader).toHaveBeenCalledWith(
       "Content-Disposition",
