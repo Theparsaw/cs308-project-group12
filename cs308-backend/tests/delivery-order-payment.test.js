@@ -616,8 +616,12 @@ describe("payment, delivery, and tracking coverage", () => {
             deliveryStatus: "shipped",
             trackingNumber: "TRK-12345678",
             timeline: expect.arrayContaining([
-              expect.objectContaining({ key: "processing" }),
-              expect.objectContaining({ key: "shipped", state: "current" }),
+              expect.objectContaining({ key: "processing", state: "completed" }),
+              expect.objectContaining({
+                key: "out_for_delivery",
+                label: "In transit",
+                state: "current",
+              }),
             ]),
           }),
         ],

@@ -25,7 +25,7 @@
       </div>
 
       <div class="bg-white border border-gray-200 rounded-3xl p-5">
-        <p class="text-sm text-gray-500 mb-2">Out for Delivery</p>
+        <p class="text-sm text-gray-500 mb-2">In transit</p>
         <p class="text-3xl font-bold text-gray-900">{{ outForDeliveryCount }}</p>
       </div>
 
@@ -222,7 +222,7 @@ const filterOptions = [
   { label: 'All', value: 'all' },
   { label: 'Processing', value: 'processing' },
   { label: 'Shipped', value: 'shipped' },
-  { label: 'Out for Delivery', value: 'out_for_delivery' },
+  { label: 'In transit', value: 'out_for_delivery' },
   { label: 'Delivered', value: 'delivered' },
   { label: 'Cancelled', value: 'cancelled' },
 ]
@@ -280,7 +280,7 @@ const formatStatusLabel = (status) => {
     case 'shipped':
       return 'Shipped'
     case 'out_for_delivery':
-      return 'Out for Delivery'
+      return 'In transit'
     case 'delivered':
       return 'Delivered'
     case 'cancelled':

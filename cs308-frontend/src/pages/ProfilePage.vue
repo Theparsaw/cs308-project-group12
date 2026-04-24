@@ -353,7 +353,7 @@
                 <h4 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Shipment Timeline</h4>
                 <div class="mt-4 space-y-4">
                   <div
-                    v-for="step in order.timeline"
+                    v-for="step in getDisplayTimeline(order)"
                     :key="step.key"
                     class="flex items-start gap-4"
                   >
@@ -642,8 +642,8 @@ const formatPaymentStatus = (status) => {
 const formatDeliveryStatus = (status) => {
   const labels = {
     processing: 'Processing',
-    shipped: 'Shipped',
-    out_for_delivery: 'Out for Delivery',
+    shipped: 'In transit',
+    out_for_delivery: 'In transit',
     delivered: 'Delivered',
     cancelled: 'Cancelled',
   }
@@ -657,6 +657,31 @@ const formatInvoiceStatus = (status) => {
     failed: 'Email Failed',
   }
   return labels[status] || status
+}
+
+const getDisplayTimeline = (order) => {
+  const timeline = Array.isArray(order.timeline) ? order.timeline : []
+  const shippedStep = timeline.find((step) => step.key === 'shipped')
+  const visibleTimeline = timeline
+    .filter((step) => step.key !== 'shipped')
+    .map((step) => ({
+      ...step,
+      label: step.key === 'out_for_delivery' ? 'In transit' : step.label,
+    }))
+
+  const normalizedTimeline =
+    shippedStep?.state === 'current'
+      ? visibleTimeline.map((step) => {
+          if (step.key === 'processing') return { ...step, state: 'completed' }
+          if (step.key === 'out_for_delivery') return { ...step, state: 'current' }
+          return step
+        })
+      : visibleTimeline
+
+  return normalizedTimeline.map((step, index) => ({
+    ...step,
+    isLast: index === normalizedTimeline.length - 1,
+  }))
 }
 
 const getDeliveryBadgeClass = (status) => {
@@ -717,7 +742,7 @@ const getTimelineMarker = (step) => {
   const markers = {
     processing: 'P',
     shipped: 'S',
-    out_for_delivery: 'O',
+    out_for_delivery: 'I',
     delivered: 'D',
     cancelled: 'X',
   }

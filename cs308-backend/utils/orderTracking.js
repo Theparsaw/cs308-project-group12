@@ -36,13 +36,8 @@ const buildNormalTimeline = (order, deliveryStatus) => {
       date: baseDate,
     },
     {
-      key: "shipped",
-      label: "Shipped",
-      date: addDays(baseDate, 1),
-    },
-    {
       key: "out_for_delivery",
-      label: "Out for Delivery",
+      label: "In transit",
       date: addDays(baseDate, 3),
     },
     {
@@ -52,7 +47,9 @@ const buildNormalTimeline = (order, deliveryStatus) => {
     },
   ];
 
-  const currentIndex = steps.findIndex((step) => step.key === deliveryStatus);
+  const timelineStatus =
+    deliveryStatus === "shipped" ? "out_for_delivery" : deliveryStatus;
+  const currentIndex = steps.findIndex((step) => step.key === timelineStatus);
 
   return steps.map((step, index) => ({
     ...step,
