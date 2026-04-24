@@ -1,23 +1,42 @@
 const nodemailer = require("nodemailer");
 
-const sendInvoiceEmail = async (toEmail, invoiceNumber, pdfBuffer) => {
-  try {
-    // Automatically generate a fake testing account
-    const testAccount = await nodemailer.createTestAccount();
+const createTransporter = async () => {
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
 
-    // Create a transporter using the fake Ethereal SMTP server
-    const transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false, // true for 465, false for other ports
+  if (smtpHost && smtpUser && smtpPass) {
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: process.env.SMTP_SECURE === "true",
       auth: {
-        user: testAccount.user, // generated ethereal user
-        pass: testAccount.pass, // generated ethereal password
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
+  }
+
+  const testAccount = await nodemailer.createTestAccount();
+
+  return nodemailer.createTransport({
+    host: "smtp.ethereal.email",
+    port: 587,
+    secure: false,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+};
+
+const sendInvoiceEmail = async (toEmail, invoiceNumber, pdfBuffer) => {
+  try {
+    const transporter = await createTransporter();
 
     const mailOptions = {
-      from: '"CS308 Store" <noreply@cs308store.com>',
+      from: process.env.SMTP_FROM || '"CS308 Store" <noreply@cs308store.com>',
       to: toEmail,
       subject: `Your Invoice for Order #${invoiceNumber} - CS308 Store`,
       text: "Thank you for choosing CS308 Store! Please find your invoice attached.",
@@ -31,10 +50,12 @@ const sendInvoiceEmail = async (toEmail, invoiceNumber, pdfBuffer) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    
-    // This logs a clickable link to your terminal where you can view the sent email and PDF!
-    console.log("Email sent successfully!");
-    console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    console.log(`Invoice email sent to ${toEmail}`);
+    if (previewUrl) {
+      console.log("Preview URL: %s", previewUrl);
+    }
     
     return true;
   } catch (error) {
