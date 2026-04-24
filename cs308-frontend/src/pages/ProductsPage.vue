@@ -203,11 +203,15 @@ const promoImages = [
   '/promos/61vJtKbAssL._AC_SL1500_.png'
 ]
 
-const heroProducts = computed(() => {
-  const featured = popularProducts.value.slice(0, 3)
-  const sonyHeadphones = products.value.find(product => product.productId === 'p011')
+const heroProductIds = ['p018', 'p009', 'p036', 'p011']
 
-  return sonyHeadphones ? [...featured, sonyHeadphones] : featured
+const heroProducts = computed(() => {
+  const productsById = new Map(products.value.map(product => [product.productId, product]))
+  const orderedProducts = heroProductIds
+    .map(productId => productsById.get(productId))
+    .filter(Boolean)
+
+  return orderedProducts.length ? orderedProducts : popularProducts.value.slice(0, 4)
 })
 
 const heroSlides = computed(() =>
