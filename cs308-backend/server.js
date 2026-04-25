@@ -13,6 +13,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const authRoutes = require("./routes/authRoutes");
 const deliveryRoutes = require("./routes/deliveryRoutes");
+const wishlistRoutes = require("./routes/wishlistRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 dotenv.config();
@@ -40,6 +41,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/deliveries", deliveryRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
