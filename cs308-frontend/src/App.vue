@@ -82,6 +82,89 @@
           </router-link>
 
           <template v-else>
+            <div
+              v-if="showHeaderWishlist"
+              class="relative"
+            >
+              <div class="group relative">
+                <router-link
+                  :to="{ path: '/profile', query: { tab: 'wishlist' } }"
+                  class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-sm transition hover:border-orange-400 hover:text-orange-500"
+                  aria-label="Open wishlist"
+                  title="Open wishlist"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 fill-transparent transition-colors group-hover:fill-current group-focus-visible:fill-current"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12.001 20.727l-.783-.714C6.43 15.647 3.25 12.736 3.25 8.994A4.744 4.744 0 017.994 4.25c1.565 0 3.066.744 4.007 1.917.94-1.173 2.442-1.917 4.007-1.917a4.744 4.744 0 014.742 4.744c0 3.742-3.18 6.653-7.968 11.02l-.78.713z"
+                    />
+                  </svg>
+                </router-link>
+
+                <div
+                  v-if="route.path === '/'"
+                  class="pointer-events-none absolute right-0 top-full z-50 w-80 pt-3 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+                >
+                  <router-link
+                    :to="{ path: '/profile', query: { tab: 'wishlist' } }"
+                    class="block rounded-2xl border border-orange-100 bg-white p-4 shadow-xl"
+                  >
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                      <p class="text-sm font-semibold text-gray-900">Click, you have some discounts! 🤩</p>
+                      <span class="text-xs font-medium text-orange-500">
+                        {{ wishlistPreviewCounter }}
+                      </span>
+                    </div>
+
+                    <div v-if="wishlistPreviewItems.length === 0" class="text-sm text-gray-500">
+                      No saved products yet.
+                    </div>
+
+                    <div v-else class="space-y-3">
+                      <div
+                        v-for="(item, index) in wishlistPreviewItems"
+                        :key="item.productId"
+                        class="flex items-center gap-3"
+                      >
+                        <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-orange-300 bg-gray-100">
+                          <img
+                            v-if="item.product?.imageUrl"
+                            :src="item.product.imageUrl"
+                            :alt="`${item.product.model} by ${item.product.name}`"
+                            class="h-full w-full object-cover"
+                          />
+                          <div
+                            v-else
+                            class="flex h-full w-full items-center justify-center text-[10px] text-gray-400"
+                          >
+                            No Image
+                          </div>
+                          <div
+                            v-if="wishlistOverflowCount > 0 && index === wishlistPreviewItems.length - 1"
+                            class="absolute inset-0 flex items-center justify-center bg-gray-900/45 text-sm font-semibold text-white"
+                          >
+                            +{{ wishlistOverflowCount }}
+                          </div>
+                        </div>
+
+                        <div class="min-w-0">
+                          <p class="truncate text-sm font-medium text-gray-900">{{ item.product?.model }}</p>
+                          <p class="truncate text-xs text-gray-500">{{ item.product?.name }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </router-link>
+                </div>
+              </div>
+            </div>
+
             <router-link
               to="/profile"
               class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
@@ -148,6 +231,7 @@ import { resolveAssetUrl } from './api/authApi'
 import { getCart, resetCartId } from './api/cartApi'
 import { authStore } from './store/auth'
 import { cartStore } from './store/cart'
+import { wishlistStore } from './store/wishlist'
 
 const router = useRouter()
 const route = useRoute()
@@ -163,6 +247,18 @@ const sortOptions = [
 
 const activeSort = computed(() =>
   typeof route.query.sort === 'string' ? route.query.sort : ''
+)
+
+const showHeaderWishlist = computed(() =>
+  authStore.isLoggedIn && authStore.role === 'customer'
+)
+
+const wishlistPreviewItems = computed(() => wishlistStore.items.slice(0, 4))
+const wishlistOverflowCount = computed(() => Math.max(wishlistStore.items.length - 4, 0))
+const wishlistPreviewCounter = computed(() =>
+  wishlistStore.items.length > 4
+    ? '4+ more'
+    : `${wishlistPreviewItems.value.length} ${wishlistPreviewItems.value.length === 1 ? 'item' : 'items'}`
 )
 
 const setSort = (value) => {
@@ -190,6 +286,7 @@ const handleLogout = () => {
   authStore.clearAuth()
   cartStore.clear()
   resetCartId()
+  wishlistStore.clear()
   router.push('/login')
 }
 
@@ -218,6 +315,11 @@ watch(
   () => authStore.token,
   () => {
     syncCartCount()
+    wishlistStore.clear()
+
+    if (authStore.isLoggedIn && authStore.role === 'customer') {
+      wishlistStore.ensureLoaded().catch(() => {})
+    }
   },
   { immediate: true }
 )

@@ -393,7 +393,7 @@
         </div>
       </div>
 
-      <div v-else class="space-y-6">
+      <div v-else-if="activeTab === 'invoices'" class="space-y-6">
         <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -481,6 +481,92 @@
           </div>
         </div>
       </div>
+
+      <div v-else class="space-y-6">
+        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Wishlist</h2>
+              <p class="text-sm text-gray-500">
+                View your saved products and jump back to their details.
+              </p>
+            </div>
+            <span class="text-sm font-medium text-gray-500">
+              {{ wishlistItems.length }} {{ wishlistItems.length === 1 ? 'item' : 'items' }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="wishlistLoading" class="rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-500 shadow-sm">
+          Loading your wishlist...
+        </div>
+
+        <div
+          v-else-if="wishlistError"
+          class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 shadow-sm"
+        >
+          {{ wishlistError }}
+        </div>
+
+        <div
+          v-else-if="wishlistItems.length === 0"
+          class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500 shadow-sm"
+        >
+          You have no saved products yet.
+        </div>
+
+        <div v-else class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          <article
+            v-for="item in wishlistItems"
+            :key="item.productId"
+            class="relative rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+          >
+            <button
+              type="button"
+              class="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="removingWishlistProductId === item.productId"
+              @click="removeWishlistProduct(item.productId)"
+            >
+              <span aria-hidden="true">&times;</span>
+              <span class="sr-only">Remove from wishlist</span>
+            </button>
+
+            <router-link :to="`/products/${item.product.productId}`" class="block">
+              <div class="aspect-[4/3] overflow-hidden rounded-xl bg-gray-100">
+                <img
+                  v-if="item.product.imageUrl"
+                  :src="item.product.imageUrl"
+                  :alt="`${item.product.model} by ${item.product.name}`"
+                  class="h-full w-full object-cover"
+                />
+                <div
+                  v-else
+                  class="flex h-full w-full items-center justify-center text-sm text-gray-400"
+                >
+                  No Image
+                </div>
+              </div>
+
+              <h3 class="mt-4 line-clamp-2 min-h-[48px] font-semibold text-gray-900">
+                {{ item.product.model }}
+              </h3>
+              <p class="mt-1 text-sm text-gray-500">{{ item.product.name }}</p>
+              <p class="mt-3 line-clamp-2 min-h-[40px] text-sm text-gray-600">
+                {{ item.product.description }}
+              </p>
+
+              <div class="mt-4">
+                <p class="text-lg font-bold text-orange-600">
+                  ${{ Number(item.product.price).toLocaleString() }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  Stock: {{ item.product.quantityInStock ?? 'N/A' }}
+                </p>
+              </div>
+            </router-link>
+          </article>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -492,15 +578,10 @@ import { getProfile, resolveAssetUrl, updateProfile } from '../api/authApi'
 import { downloadInvoice, getMyInvoices } from '../api/invoiceApi'
 import { getMyOrders } from '../api/orderApi'
 import { authStore } from '../store/auth'
+import { wishlistStore } from '../store/wishlist'
 
 const route = useRoute()
 const router = useRouter()
-
-const tabs = [
-  { id: 'profile', label: 'Profile Details' },
-  { id: 'orders', label: 'Order Tracking' },
-  { id: 'invoices', label: 'Invoices' },
-]
 
 const user = ref({})
 const loading = ref(true)
@@ -516,6 +597,9 @@ const ordersError = ref('')
 const invoices = ref([])
 const invoicesLoading = ref(false)
 const invoicesError = ref('')
+const wishlistLoading = ref(false)
+const wishlistError = ref('')
+const removingWishlistProductId = ref('')
 const downloadingInvoiceId = ref('')
 const photoInput = ref(null)
 const selectedPhotoFile = ref(null)
@@ -534,11 +618,28 @@ const form = ref({
   profileImage: '',
 })
 
+const tabs = computed(() => {
+  const baseTabs = [
+    { id: 'profile', label: 'Profile Details' },
+    { id: 'orders', label: 'Order Tracking' },
+    { id: 'invoices', label: 'Invoices' },
+  ]
+
+  if (user.value.role === 'customer') {
+    baseTabs.push({ id: 'wishlist', label: 'Wishlist' })
+  }
+
+  return baseTabs
+})
+
 const activeTab = computed(() => {
   if (route.query.tab === 'orders') return 'orders'
   if (route.query.tab === 'invoices') return 'invoices'
+  if (route.query.tab === 'wishlist' && user.value.role === 'customer') return 'wishlist'
   return 'profile'
 })
+
+const wishlistItems = computed(() => wishlistStore.items || [])
 
 const displayProfileImage = computed(() => {
   if (isEditing.value && selectedPhotoPreview.value) {
@@ -557,7 +658,7 @@ const getProfileImageUrl = (value) => resolveAssetUrl(value)
 const setActiveTab = (tabId) => {
   const nextQuery = { ...route.query }
 
-  if (tabId === 'orders' || tabId === 'invoices') {
+  if (tabId === 'orders' || tabId === 'invoices' || tabId === 'wishlist') {
     nextQuery.tab = tabId
   } else {
     delete nextQuery.tab
@@ -605,6 +706,24 @@ const fetchInvoices = async () => {
     invoicesError.value = err?.response?.data?.message || 'Failed to load invoices. Please try again.'
   } finally {
     invoicesLoading.value = false
+  }
+}
+
+const fetchWishlist = async () => {
+  if (user.value.role !== 'customer') {
+    wishlistStore.clear()
+    return
+  }
+
+  wishlistLoading.value = true
+  wishlistError.value = ''
+
+  try {
+    await wishlistStore.ensureLoaded(true)
+  } catch (err) {
+    wishlistError.value = err?.response?.data?.message || 'Failed to load wishlist. Please try again.'
+  } finally {
+    wishlistLoading.value = false
   }
 }
 
@@ -738,6 +857,19 @@ const handleDownloadInvoice = async (invoice) => {
     invoicesError.value = err?.response?.data?.message || 'Failed to download invoice. Please try again.'
   } finally {
     downloadingInvoiceId.value = ''
+  }
+}
+
+const removeWishlistProduct = async (productId) => {
+  removingWishlistProductId.value = productId
+  wishlistError.value = ''
+
+  try {
+    await wishlistStore.toggle(productId)
+  } catch (err) {
+    wishlistError.value = err?.response?.data?.message || 'Failed to remove wishlist item. Please try again.'
+  } finally {
+    removingWishlistProductId.value = ''
   }
 }
 
@@ -952,6 +1084,10 @@ watch(
 
     if (tab === 'invoices' && !invoicesLoading.value) {
       fetchInvoices()
+    }
+
+    if (tab === 'wishlist' && !wishlistLoading.value) {
+      fetchWishlist()
     }
   },
   { immediate: true }

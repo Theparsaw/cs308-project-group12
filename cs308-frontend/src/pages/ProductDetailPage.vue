@@ -33,8 +33,17 @@
         </div>
 
         <div class="w-full md:w-1/2 flex flex-col">
-          <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.model }}</h1>
-          <p class="text-2xl text-green-600 font-bold mb-2">${{ product.price?.toLocaleString() }}</p>
+          <div class="mb-3 flex items-start justify-between gap-4">
+            <div>
+              <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.model }}</h1>
+              <p class="text-2xl text-green-600 font-bold mb-2">${{ product.price?.toLocaleString() }}</p>
+            </div>
+            <WishlistButton
+              v-if="product.productId"
+              :product-id="product.productId"
+              variant="detail"
+            />
+          </div>
 
           <div class="mb-4 flex items-center gap-2 text-sm">
             <span class="text-amber-500 font-semibold">{{ renderAverageStars(product.averageRating) }}</span>
@@ -230,6 +239,7 @@ import { getProductById } from '../api/productApi'
 import { createReview, getApprovedReviewsByProductId, updateReview } from '../api/reviewApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
+import WishlistButton from '../components/WishlistButton.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -6,60 +6,75 @@
     </div>
 
     <div class="flex gap-4 overflow-x-auto pb-2">
-      <router-link
+      <div
         v-for="product in products"
         :key="product.productId"
-        :to="`/products/${product.productId}`"
-        class="block min-w-[260px] max-w-[260px] bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex-shrink-0 cursor-pointer"
+        class="group relative min-w-[260px] max-w-[260px] flex-shrink-0"
       >
-        <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
-          <img
-            v-if="product.imageUrl"
-            :src="product.imageUrl"
-            :alt="`${product.model} by ${product.name}`"
-            class="w-full h-full object-cover"
-          />
+        <WishlistButton
+          :product-id="product.productId"
+          class="absolute right-3 top-3 z-20 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+        />
+
+        <router-link
+          :to="`/products/${product.productId}`"
+          class="relative z-10 block overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md cursor-pointer"
+        >
           <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
-          >
-            No Image
+            class="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-slate-950/0 transition-colors duration-200 group-hover:bg-slate-950/35 group-focus-within:bg-slate-950/35"
+          />
+
+          <div class="aspect-[4/3] rounded-xl bg-gray-100 mb-4 overflow-hidden">
+            <img
+              v-if="product.imageUrl"
+              :src="product.imageUrl"
+              :alt="`${product.model} by ${product.name}`"
+              class="w-full h-full object-cover"
+            />
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center text-gray-400 text-sm"
+            >
+              No Image
+            </div>
           </div>
-        </div>
 
-        <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
-          {{ getCategoryLabel(product.categoryId) }}
-        </p>
-
-        <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
-          {{ product.model }}
-        </h3>
-
-        <p class="text-sm text-gray-500 mt-1">{{ product.name }}</p>
-
-        <div class="mt-2 flex items-center gap-2 text-sm">
-          <span class="text-amber-500 font-semibold">{{ renderAverageStars(product.averageRating) }}</span>
-          <span class="text-gray-500">{{ formatAverageRating(product) }}</span>
-        </div>
-
-        <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
-          {{ product.description }}
-        </p>
-
-        <div class="mt-4">
-          <p class="text-lg font-bold text-orange-600">
-            ${{ Number(product.price).toLocaleString() }}
+          <p class="text-xs text-orange-600 font-semibold mb-1 capitalize">
+            {{ getCategoryLabel(product.categoryId) }}
           </p>
-          <p class="text-xs text-gray-500">
-            Stock: {{ product.quantityInStock ?? 'N/A' }}
+
+          <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
+            {{ product.model }}
+          </h3>
+
+          <p class="text-sm text-gray-500 mt-1">{{ product.name }}</p>
+
+          <div class="mt-2 flex items-center gap-2 text-sm">
+            <span class="text-amber-500 font-semibold">{{ renderAverageStars(product.averageRating) }}</span>
+            <span class="text-gray-500">{{ formatAverageRating(product) }}</span>
+          </div>
+
+          <p class="text-sm text-gray-600 mt-3 line-clamp-2 min-h-[40px]">
+            {{ product.description }}
           </p>
-        </div>
-      </router-link>
+
+          <div class="mt-4">
+            <p class="text-lg font-bold text-orange-600">
+              ${{ Number(product.price).toLocaleString() }}
+            </p>
+            <p class="text-xs text-gray-500">
+              Stock: {{ product.quantityInStock ?? 'N/A' }}
+            </p>
+          </div>
+        </router-link>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup>
+import WishlistButton from "./WishlistButton.vue"
+
 defineProps({
   title: {
     type: String,
