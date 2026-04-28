@@ -8,3 +8,6 @@ const getAuthConfig = () => ({
 })
 
 export const getMyOrders = () => api.get('/orders/my-orders', getAuthConfig())
+
+export const cancelOrder = (orderId) =>
+  api.patch(`/orders/${orderId}/cancel`, {}, getAuthConfig())

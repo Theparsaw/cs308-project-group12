@@ -33,6 +33,28 @@ const getReviewStatusForUpdate = (review, nextComment) => {
   return "pending";
 };
 
+const hasCancelledOrderForProduct = (userId, productId) =>
+  Order.exists({
+    userId: String(userId).trim(),
+    status: "cancelled",
+    items: {
+      $elemMatch: {
+        productId,
+      },
+    },
+  });
+
+const throwCancelledOrderReviewError = () => {
+  throw new AppError(
+    "You cannot review products from cancelled orders",
+    403,
+    "ORDER_CANCELLED",
+    {
+      productId: "You cannot review products from cancelled orders",
+    }
+  );
+};
+
 const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
   const { requireProductId = true } = options;
   const errors = {};
@@ -161,6 +183,10 @@ const createReview = asyncHandler(async (req, res) => {
   });
 
   if (!hasPurchasedProduct) {
+    if (await hasCancelledOrderForProduct(userId, trimmedProductId)) {
+      throwCancelledOrderReviewError();
+    }
+
     throw new AppError(
       "You can only review products that you have purchased",
       403,
@@ -199,6 +225,10 @@ const createReview = asyncHandler(async (req, res) => {
     }));
 
   if (!hasDeliveredPurchasedProduct) {
+    if (await hasCancelledOrderForProduct(userId, trimmedProductId)) {
+      throwCancelledOrderReviewError();
+    }
+
     throw new AppError(
       "You can only review products after they have been delivered",
       403,

@@ -19,6 +19,10 @@ const getDeliveryStatus = (order, delivery = null) => {
     return deliveryStatus;
   }
 
+  if (order.status === "cancelled") {
+    return "cancelled";
+  }
+
   if (order.status !== "paid") {
     return "processing";
   }

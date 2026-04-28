@@ -1,16 +1,19 @@
 jest.mock("../models/Order", () => ({
   findById: jest.fn(),
+  findOneAndUpdate: jest.fn(),
   find: jest.fn(),
 }));
 
 jest.mock("../models/Delivery", () => ({
   create: jest.fn(),
   find: jest.fn(),
+  findOne: jest.fn(),
   findById: jest.fn(),
 }));
 
 jest.mock("../models/Product", () => ({
   findOne: jest.fn(),
+  findOneAndUpdate: jest.fn(),
   updateOne: jest.fn(),
 }));
 
@@ -48,12 +51,13 @@ const Invoice = require("../models/Invoice");
 const User = require("../models/User");
 const { generateInvoicePDF } = require("../utils/invoiceGenerator");
 const { sendInvoiceEmail } = require("../utils/emailSender");
+const mongoose = require("mongoose");
 
 const {
   getOrderForPayment,
   processPayment,
 } = require("../controllers/paymentController");
-const { getMyOrders } = require("../controllers/orderController");
+const { cancelMyOrder, getMyOrders } = require("../controllers/orderController");
 const {
   getAllDeliveries,
   updateDeliveryStatus,
@@ -110,14 +114,22 @@ const buildCart = (overrides = {}) => ({
 
 describe("payment, delivery, and tracking coverage", () => {
   let consoleErrorSpy;
+  let startSessionSpy;
 
   beforeEach(() => {
     jest.resetAllMocks();
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    startSessionSpy = jest.spyOn(mongoose, "startSession").mockResolvedValue({
+      startTransaction: jest.fn(),
+      commitTransaction: jest.fn().mockResolvedValue(true),
+      abortTransaction: jest.fn().mockResolvedValue(true),
+      endSession: jest.fn(),
+    });
   });
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
+    startSessionSpy.mockRestore();
   });
 
   describe("processPayment", () => {
@@ -319,9 +331,13 @@ describe("payment, delivery, and tracking coverage", () => {
         .mockResolvedValueOnce({ productId: "prod-1", quantityInStock: 5 })
         .mockResolvedValueOnce({ productId: "prod-2", quantityInStock: 8 });
       Payment.create.mockResolvedValue(payment);
-      Product.updateOne.mockResolvedValue({ acknowledged: true });
-      Cart.findOne.mockResolvedValue(cart);
-      Delivery.create.mockResolvedValue(delivery);
+      Product.findOneAndUpdate
+        .mockResolvedValueOnce({ productId: "prod-1", quantityInStock: 3 })
+        .mockResolvedValueOnce({ productId: "prod-2", quantityInStock: 7 });
+      Cart.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(cart),
+      });
+      Delivery.create.mockResolvedValue([delivery]);
       User.findById.mockResolvedValue({
         _id: "user-1",
         email: "ada@example.com",
@@ -345,15 +361,17 @@ describe("payment, delivery, and tracking coverage", () => {
           cardLast4: "4242",
         }),
       );
-      expect(Product.updateOne).toHaveBeenNthCalledWith(
+      expect(Product.findOneAndUpdate).toHaveBeenNthCalledWith(
         1,
-        { productId: "prod-1" },
+        { productId: "prod-1", quantityInStock: { $gte: 2 } },
         { $inc: { quantityInStock: -2 } },
+        expect.objectContaining({ new: true }),
       );
-      expect(Product.updateOne).toHaveBeenNthCalledWith(
+      expect(Product.findOneAndUpdate).toHaveBeenNthCalledWith(
         2,
-        { productId: "prod-2" },
+        { productId: "prod-2", quantityInStock: { $gte: 1 } },
         { $inc: { quantityInStock: -1 } },
+        expect.objectContaining({ new: true }),
       );
       expect(order.status).toBe("paid");
       expect(order.paidAt).toEqual(expect.any(Date));
@@ -362,12 +380,15 @@ describe("payment, delivery, and tracking coverage", () => {
       expect(cart.totalPrice).toBe(0);
       expect(cart.save).toHaveBeenCalled();
       expect(Delivery.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orderId: order._id,
-          userId: order.userId,
-          status: "processing",
-          address: "Default address",
-        }),
+        [
+          expect.objectContaining({
+            orderId: order._id,
+            userId: order.userId,
+            status: "processing",
+            address: "Default address",
+          }),
+        ],
+        expect.objectContaining({ session: expect.any(Object) }),
       );
       expect(generateInvoicePDF).toHaveBeenCalledWith(
         order,
@@ -401,7 +422,7 @@ describe("payment, delivery, and tracking coverage", () => {
       );
     });
 
-    test("returns success with a warning message when delivery creation fails", async () => {
+    test("returns 500 and refunds payment status when finalizing delivery fails", async () => {
       const req = {
         params: { orderId: "order-1" },
         body: {
@@ -418,38 +439,40 @@ describe("payment, delivery, and tracking coverage", () => {
       const cart = buildCart({
         items: [...order.items],
       });
+      const payment = {
+        _id: "payment-1",
+        status: "success",
+        save: jest.fn().mockResolvedValue(true),
+      };
 
       Order.findById.mockResolvedValue(order);
       Product.findOne
         .mockResolvedValueOnce({ productId: "prod-1", quantityInStock: 5 })
         .mockResolvedValueOnce({ productId: "prod-2", quantityInStock: 8 });
-      Payment.create.mockResolvedValue({
-        _id: "payment-1",
-        status: "success",
+      Payment.create.mockResolvedValue(payment);
+      Product.findOneAndUpdate
+        .mockResolvedValueOnce({ productId: "prod-1", quantityInStock: 3 })
+        .mockResolvedValueOnce({ productId: "prod-2", quantityInStock: 7 });
+      Cart.findOne.mockReturnValue({
+        session: jest.fn().mockResolvedValue(cart),
       });
-      Product.updateOne.mockResolvedValue({ acknowledged: true });
-      Cart.findOne.mockResolvedValue(cart);
       Delivery.create.mockRejectedValue(new Error("insert failed"));
 
       await processPayment(req, res);
 
-      expect(order.status).toBe("paid");
-      expect(Product.updateOne).toHaveBeenCalledTimes(2);
+      expect(order.status).toBe("payment_failed");
+      expect(Product.findOneAndUpdate).toHaveBeenCalledTimes(2);
       expect(cart.save).toHaveBeenCalled();
+      expect(payment.status).toBe("refunded");
+      expect(payment.save).toHaveBeenCalled();
       expect(sendInvoiceEmail).not.toHaveBeenCalled();
       expect(Invoice.create).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          message: "Payment succeeded but delivery creation failed",
-          paymentStatus: "success",
-          order: expect.objectContaining({
-            id: order._id,
-            status: "paid",
-          }),
-        }),
-      );
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: "A system error occurred while finalizing your order. You have not been charged.",
+        error: "insert failed",
+      });
     });
 
     test("records a declined payment without reducing stock or creating delivery", async () => {
@@ -603,7 +626,7 @@ describe("payment, delivery, and tracking coverage", () => {
 
       expect(Order.find).toHaveBeenCalledWith({
         userId: "user-1",
-        status: "paid",
+        status: { $in: ["paid", "cancelled"] },
       });
       expect(Delivery.find).toHaveBeenCalledWith({
         orderId: { $in: ["order12345678"] },
@@ -673,6 +696,129 @@ describe("payment, delivery, and tracking coverage", () => {
         message: "Failed to fetch orders",
         error: "query failed",
       });
+    });
+  });
+
+  describe("cancelMyOrder", () => {
+    test("cancels an owned processing order and restores stock", async () => {
+      const req = {
+        params: { orderId: "order12345678" },
+        user: { id: "user-1" },
+      };
+      const res = createRes();
+      const order = buildOrder({
+        _id: "order12345678",
+        status: "paid",
+        paidAt: new Date("2026-04-21T10:00:00.000Z"),
+      });
+      order.toObject = jest.fn(() => ({
+        _id: order._id,
+        userId: order.userId,
+        cartId: order.cartId,
+        items: order.items,
+        totalPrice: order.totalPrice,
+        status: order.status,
+        paidAt: order.paidAt,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+      }));
+      const delivery = {
+        orderId: "order12345678",
+        status: "processing",
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      Order.findById.mockResolvedValue(order);
+      Order.findOneAndUpdate.mockImplementation(async () => {
+        order.status = "cancelled";
+        return order;
+      });
+      Delivery.findOne.mockResolvedValue(delivery);
+      Product.updateOne.mockResolvedValue({ acknowledged: true });
+
+      await cancelMyOrder(req, res);
+
+      expect(Order.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          _id: "order12345678",
+          userId: "user-1",
+          status: "paid",
+        },
+        { status: "cancelled" },
+        { new: true },
+      );
+      expect(Product.updateOne).toHaveBeenNthCalledWith(
+        1,
+        { productId: "prod-1" },
+        { $inc: { quantityInStock: 2 } },
+      );
+      expect(Product.updateOne).toHaveBeenNthCalledWith(
+        2,
+        { productId: "prod-2" },
+        { $inc: { quantityInStock: 1 } },
+      );
+      expect(order.status).toBe("cancelled");
+      expect(order.save).not.toHaveBeenCalled();
+      expect(delivery.status).toBe("cancelled");
+      expect(delivery.save).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Order cancelled successfully",
+        order: expect.objectContaining({
+          id: "order12345678",
+          status: "cancelled",
+          deliveryStatus: "cancelled",
+        }),
+      });
+    });
+
+    test("rejects cancellation for orders owned by another user", async () => {
+      const req = {
+        params: { orderId: "order12345678" },
+        user: { id: "user-2" },
+      };
+      const res = createRes();
+      const order = buildOrder({
+        _id: "order12345678",
+        status: "paid",
+        userId: "user-1",
+      });
+
+      Order.findById.mockResolvedValue(order);
+
+      await cancelMyOrder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ message: "Access denied" });
+      expect(Product.updateOne).not.toHaveBeenCalled();
+      expect(order.save).not.toHaveBeenCalled();
+    });
+
+    test("rejects cancellation after delivery has moved forward", async () => {
+      const req = {
+        params: { orderId: "order12345678" },
+        user: { id: "user-1" },
+      };
+      const res = createRes();
+      const order = buildOrder({
+        _id: "order12345678",
+        status: "paid",
+      });
+
+      Order.findById.mockResolvedValue(order);
+      Delivery.findOne.mockResolvedValue({
+        orderId: "order12345678",
+        status: "out_for_delivery",
+      });
+
+      await cancelMyOrder(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Orders cannot be cancelled after shipment or delivery",
+      });
+      expect(Product.updateOne).not.toHaveBeenCalled();
+      expect(order.save).not.toHaveBeenCalled();
     });
   });
 

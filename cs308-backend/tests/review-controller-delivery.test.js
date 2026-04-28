@@ -68,6 +68,15 @@ describe("createReview delivery requirement", () => {
         },
       },
     });
+    expect(Order.exists).toHaveBeenNthCalledWith(2, {
+      userId: "user-1",
+      status: "cancelled",
+      items: {
+        $elemMatch: {
+          productId: "p001",
+        },
+      },
+    });
     expect(Delivery.distinct).not.toHaveBeenCalled();
     expect(Review.create).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(
@@ -79,8 +88,55 @@ describe("createReview delivery requirement", () => {
     );
   });
 
+  test("rejects reviews for products from cancelled orders with a clear message", async () => {
+    Order.exists
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ _id: new mongoose.Types.ObjectId() });
+
+    const req = buildReq();
+    const res = createRes();
+    const next = jest.fn();
+
+    await createReview(req, res, next);
+
+    expect(Delivery.distinct).not.toHaveBeenCalled();
+    expect(Review.create).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 403,
+        code: "ORDER_CANCELLED",
+        message: "You cannot review products from cancelled orders",
+      })
+    );
+  });
+
+  test("prefers the cancelled order message over the generic delivery message", async () => {
+    Order.exists
+      .mockResolvedValueOnce({ _id: new mongoose.Types.ObjectId() })
+      .mockResolvedValueOnce({ _id: new mongoose.Types.ObjectId() });
+    Delivery.distinct.mockResolvedValue([]);
+
+    const req = buildReq();
+    const res = createRes();
+    const next = jest.fn();
+
+    await createReview(req, res, next);
+
+    expect(Delivery.distinct).toHaveBeenCalled();
+    expect(Review.create).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 403,
+        code: "ORDER_CANCELLED",
+        message: "You cannot review products from cancelled orders",
+      })
+    );
+  });
+
   test("rejects reviews when the purchased product is still in transit", async () => {
-    Order.exists.mockResolvedValueOnce({ _id: new mongoose.Types.ObjectId() });
+    Order.exists
+      .mockResolvedValueOnce({ _id: new mongoose.Types.ObjectId() })
+      .mockResolvedValueOnce(null);
     Delivery.distinct.mockResolvedValue([]);
 
     const req = buildReq();
@@ -98,7 +154,7 @@ describe("createReview delivery requirement", () => {
         },
       },
     });
-    expect(Order.exists).toHaveBeenCalledTimes(1);
+    expect(Order.exists).toHaveBeenCalledTimes(2);
     expect(Review.create).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({

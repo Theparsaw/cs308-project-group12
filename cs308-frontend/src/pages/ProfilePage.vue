@@ -323,6 +323,15 @@
                   Total:
                   <span class="font-semibold text-gray-900">${{ Number(order.totalPrice || 0).toLocaleString() }}</span>
                 </p>
+                <button
+                  v-if="canCancelOrder(order)"
+                  type="button"
+                  class="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  :disabled="cancellingOrderId === order.id"
+                  @click="handleCancelOrder(order)"
+                >
+                  {{ cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order' }}
+                </button>
               </div>
             </div>
 
@@ -576,7 +585,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProfile, resolveAssetUrl, updateProfile } from '../api/authApi'
 import { downloadInvoice, getMyInvoices } from '../api/invoiceApi'
-import { getMyOrders } from '../api/orderApi'
+import { cancelOrder, getMyOrders } from '../api/orderApi'
 import { authStore } from '../store/auth'
 import { wishlistStore } from '../store/wishlist'
 
@@ -601,6 +610,7 @@ const wishlistLoading = ref(false)
 const wishlistError = ref('')
 const removingWishlistProductId = ref('')
 const downloadingInvoiceId = ref('')
+const cancellingOrderId = ref('')
 const photoInput = ref(null)
 const selectedPhotoFile = ref(null)
 const selectedPhotoPreview = ref('')
@@ -836,6 +846,24 @@ const goToProductReview = (productId) => {
     path: `/products/${productId}`,
     query: { review: '1' },
   })
+}
+
+const canCancelOrder = (order) => {
+  return order.status === 'paid' && order.deliveryStatus === 'processing'
+}
+
+const handleCancelOrder = async (order) => {
+  cancellingOrderId.value = order.id
+  ordersError.value = ''
+
+  try {
+    await cancelOrder(order.id)
+    await fetchOrders()
+  } catch (err) {
+    ordersError.value = err?.response?.data?.message || 'Failed to cancel order. Please try again.'
+  } finally {
+    cancellingOrderId.value = ''
+  }
 }
 
 const handleDownloadInvoice = async (invoice) => {
