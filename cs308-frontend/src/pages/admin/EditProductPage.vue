@@ -20,23 +20,28 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getCategories } from '../../api/categoryApi'
 import { getProductById, updateProduct } from '../../api/productApi'
 import ProductForm from '../../components/admin/ProductForm.vue'
-import { categories } from '../../data/categories'
 
 const route = useRoute()
 const router = useRouter()
 
 const product = ref(null)
+const categories = ref([])
 const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
   try {
-    const res = await getProductById(route.params.id)
-    product.value = res.data
+    const [productRes, categoriesRes] = await Promise.all([
+      getProductById(route.params.id),
+      getCategories(),
+    ])
+    product.value = productRes.data
+    categories.value = categoriesRes.data.categories || []
   } catch (err) {
-    error.value = 'Failed to load product'
+    error.value = err?.response?.data?.message || 'Failed to load product'
     console.error(err)
   } finally {
     loading.value = false

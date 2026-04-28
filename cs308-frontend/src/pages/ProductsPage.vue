@@ -136,13 +136,14 @@ import ProductSection from '../components/ProductsSection.vue'
 import HeroSection from '../components/HeroSection.vue'
 import HomeHero from '../components/HomeHero.vue'
 import TrustFeatures from '../components/TrustFeatures.vue'
+import { getCategories } from '../api/categoryApi'
 import { getProducts } from '../api/productApi'
-import { categories } from '../data/categories'
 
 const route = useRoute()
 const router = useRouter()
 
 const products = ref([])
+const categories = ref([])
 const loading = ref(true)
 const error = ref('')
 const selectedCategories = ref([])
@@ -166,7 +167,7 @@ const activeSort = computed(() =>
 )
 
 const categoryMap = computed(() => {
-  return Object.fromEntries(categories.map(cat => [cat.categoryId, cat.name]))
+  return Object.fromEntries(categories.value.map(cat => [cat.categoryId, cat.name]))
 })
 
 const uniqueCategories = computed(() => {
@@ -256,8 +257,12 @@ const loadProducts = async () => {
   loading.value = true
   error.value = ''
   try {
-    const res = await getProducts(activeSearch.value, activeSort.value)
-    products.value = res.data ?? []
+    const [productsRes, categoriesRes] = await Promise.all([
+      getProducts(activeSearch.value, activeSort.value),
+      getCategories(),
+    ])
+    products.value = productsRes.data ?? []
+    categories.value = categoriesRes.data.categories || []
   } catch (err) {
     error.value = 'Failed to load products'
     console.error(err)

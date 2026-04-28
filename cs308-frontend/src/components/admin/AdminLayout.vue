@@ -67,6 +67,7 @@ const navItems = computed(() => {
   return [
     { label: 'Dashboard', to: '/admin/dashboard' },
     { label: 'Products', to: '/admin/products' },
+    { label: 'Categories', to: '/admin/categories' },
     { label: 'Reviews & Ratings', to: '/admin/reviews' },
     { label: 'Stock', to: '/admin/stock' },
   ]

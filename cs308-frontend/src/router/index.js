@@ -20,6 +20,7 @@ import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage.vue'
 import AdminStockPage from '../pages/admin/AdminStockPage.vue'
 import SalesDeliveriesPage from '../pages/admin/SalesDeliveriesPage.vue'
+import AdminCategoriesPage from '../pages/admin/AdminCategoriesPage.vue'
 
 const adminAreaMeta = {
   requiresAuth: true,
@@ -88,6 +89,11 @@ const routes = [
       {
         path: 'stock',
         component: AdminStockPage,
+        meta: productManagerMeta,
+      },
+      {
+        path: 'categories',
+        component: AdminCategoriesPage,
         meta: productManagerMeta,
       },
       {
