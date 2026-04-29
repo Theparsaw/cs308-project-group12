@@ -356,10 +356,18 @@
                       <button
                         type="button"
                         class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-gray-300"
-                        :disabled="order.deliveryStatus !== 'delivered'"
+                        :disabled="!canReviewItem(order, item)"
                         @click="goToProductReview(item.productId)"
                       >
-                        {{ order.deliveryStatus === 'delivered' ? 'Leave Review' : 'Available after delivery' }}
+                        {{ getReviewButtonLabel(order, item) }}
+                      </button>
+                      <button
+                        v-if="canRequestReturn(order)"
+                        type="button"
+                        class="rounded-xl border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
+                        @click="startReturnRequest(order, item)"
+                      >
+                        Request Return
                       </button>
                     </div>
                   </div>
@@ -398,6 +406,101 @@
                 </div>
               </section>
             </div>
+
+            <form
+              v-if="returnForm.orderId === order.id"
+              class="mt-6 rounded-2xl border border-orange-100 bg-orange-50 p-5"
+              @submit.prevent="handleSubmitReturnRequest(order)"
+            >
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h4 class="font-semibold text-gray-900">Return Request</h4>
+                  <p class="text-sm text-gray-600">Order #{{ order.id.slice(-8).toUpperCase() }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="text-sm font-semibold text-gray-500 transition hover:text-gray-700"
+                  :disabled="submittingReturn"
+                  @click="cancelReturnRequest"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div class="mt-4 space-y-3">
+                <div
+                  v-for="item in order.items"
+                  :key="`return-${order.id}-${item.productId}`"
+                  class="rounded-xl border border-orange-100 bg-white p-4"
+                >
+                  <label class="flex items-start gap-3">
+                    <input
+                      :checked="isReturnItemSelected(item.productId)"
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                      :disabled="submittingReturn"
+                      @change="toggleReturnItem(item, $event.target.checked)"
+                    />
+                    <span class="min-w-0">
+                      <span class="block font-semibold text-gray-900">{{ item.name }}</span>
+                      <span class="block text-sm text-gray-500">
+                      Qty {{ item.quantity }} - ${{ Number(item.unitPrice * item.quantity).toLocaleString() }}
+                      </span>
+                    </span>
+                  </label>
+
+                  <div v-if="isReturnItemSelected(item.productId)" class="mt-3 flex items-center gap-3 pl-7">
+                    <label class="text-sm font-semibold text-gray-600" :for="`return-qty-${order.id}-${item.productId}`">
+                      Return quantity
+                    </label>
+                    <input
+                      :id="`return-qty-${order.id}-${item.productId}`"
+                      type="number"
+                      min="1"
+                      :max="item.quantity"
+                      step="1"
+                      :value="getReturnItemQuantity(item.productId)"
+                      class="w-24 rounded-lg border border-orange-100 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                      :disabled="submittingReturn"
+                      @input="updateReturnItemQuantity(item, $event.target.value)"
+                      @blur="normalizeReturnItemQuantity(item)"
+                    />
+                    <span class="text-sm text-gray-500">of {{ item.quantity }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4">
+                <label class="text-sm font-semibold uppercase tracking-wide text-gray-500" for="returnReason">
+                  Reason
+                </label>
+                <textarea
+                  id="returnReason"
+                  v-model="returnForm.reason"
+                  rows="4"
+                  maxlength="500"
+                  class="mt-2 w-full rounded-xl border border-orange-100 bg-white px-4 py-3 text-gray-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                  placeholder="Enter the reason for this return"
+                  :disabled="submittingReturn"
+                />
+              </div>
+
+              <p v-if="returnFormError" class="mt-3 text-sm font-medium text-red-600">{{ returnFormError }}</p>
+
+              <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <p class="text-sm text-gray-600">
+                  Estimated refund:
+                  <span class="font-semibold text-gray-900">${{ Number(getReturnFormRefund(order)).toLocaleString() }}</span>
+                </p>
+                <button
+                  type="submit"
+                  class="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-300"
+                  :disabled="submittingReturn"
+                >
+                  {{ submittingReturn ? 'Submitting...' : 'Submit Return' }}
+                </button>
+              </div>
+            </form>
           </article>
         </div>
       </div>
@@ -488,6 +591,80 @@
               </div>
             </article>
           </div>
+        </div>
+      </div>
+
+      <div v-else-if="activeTab === 'returns'" class="space-y-6">
+        <div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Return Requests</h2>
+              <p class="text-sm text-gray-500">
+                Track submitted product returns and their review status.
+              </p>
+            </div>
+            <span class="text-sm font-medium text-gray-500">
+              {{ returnRequests.length }} {{ returnRequests.length === 1 ? 'request' : 'requests' }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="returnRequestsLoading" class="rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-500 shadow-sm">
+          Loading your return requests...
+        </div>
+
+        <div
+          v-else-if="returnRequestsError"
+          class="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 shadow-sm"
+        >
+          {{ returnRequestsError }}
+        </div>
+
+        <div
+          v-else-if="returnRequests.length === 0"
+          class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500 shadow-sm"
+        >
+          You have no return requests yet.
+        </div>
+
+        <div v-else class="space-y-4">
+          <article
+            v-for="request in returnRequests"
+            :key="request.id"
+            class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <h3 class="font-semibold text-gray-900">Order #{{ request.orderId.slice(-8).toUpperCase() }}</h3>
+                  <span
+                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+                    :class="getReturnStatusClass(request.status)"
+                  >
+                    {{ formatReturnStatus(request.status) }}
+                  </span>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Submitted on {{ formatDate(request.createdAt) }}</p>
+              </div>
+              <p class="text-sm text-gray-600">
+                Refund:
+                <span class="font-semibold text-gray-900">${{ Number(request.refundAmount || 0).toLocaleString() }}</span>
+              </p>
+            </div>
+
+            <div class="mt-4 space-y-2">
+              <div
+                v-for="item in request.items"
+                :key="`${request.id}-${item.productId}`"
+                class="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-700"
+              >
+                <span class="font-semibold text-gray-900">{{ item.name }}</span>
+                <span class="text-gray-500"> - Qty {{ item.quantity }}</span>
+              </div>
+            </div>
+
+            <p class="mt-4 text-sm text-gray-600">{{ request.reason }}</p>
+          </article>
         </div>
       </div>
 
@@ -586,6 +763,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getProfile, resolveAssetUrl, updateProfile } from '../api/authApi'
 import { downloadInvoice, getMyInvoices } from '../api/invoiceApi'
 import { cancelOrder, getMyOrders } from '../api/orderApi'
+import { getMyReturnRequests, submitReturnRequest } from '../api/returnApi'
 import { authStore } from '../store/auth'
 import { wishlistStore } from '../store/wishlist'
 
@@ -606,11 +784,16 @@ const ordersError = ref('')
 const invoices = ref([])
 const invoicesLoading = ref(false)
 const invoicesError = ref('')
+const returnRequests = ref([])
+const returnRequestsLoading = ref(false)
+const returnRequestsError = ref('')
 const wishlistLoading = ref(false)
 const wishlistError = ref('')
 const removingWishlistProductId = ref('')
 const downloadingInvoiceId = ref('')
 const cancellingOrderId = ref('')
+const submittingReturn = ref(false)
+const returnFormError = ref('')
 const photoInput = ref(null)
 const selectedPhotoFile = ref(null)
 const selectedPhotoPreview = ref('')
@@ -628,6 +811,12 @@ const form = ref({
   profileImage: '',
 })
 
+const returnForm = ref({
+  orderId: '',
+  items: [],
+  reason: '',
+})
+
 const tabs = computed(() => {
   const baseTabs = [
     { id: 'profile', label: 'Profile Details' },
@@ -636,6 +825,7 @@ const tabs = computed(() => {
   ]
 
   if (user.value.role === 'customer') {
+    baseTabs.push({ id: 'returns', label: 'Returns' })
     baseTabs.push({ id: 'wishlist', label: 'Wishlist' })
   }
 
@@ -645,6 +835,7 @@ const tabs = computed(() => {
 const activeTab = computed(() => {
   if (route.query.tab === 'orders') return 'orders'
   if (route.query.tab === 'invoices') return 'invoices'
+  if (route.query.tab === 'returns' && user.value.role === 'customer') return 'returns'
   if (route.query.tab === 'wishlist' && user.value.role === 'customer') return 'wishlist'
   return 'profile'
 })
@@ -668,7 +859,7 @@ const getProfileImageUrl = (value) => resolveAssetUrl(value)
 const setActiveTab = (tabId) => {
   const nextQuery = { ...route.query }
 
-  if (tabId === 'orders' || tabId === 'invoices' || tabId === 'wishlist') {
+  if (tabId === 'orders' || tabId === 'invoices' || tabId === 'returns' || tabId === 'wishlist') {
     nextQuery.tab = tabId
   } else {
     delete nextQuery.tab
@@ -684,6 +875,10 @@ const fetchProfile = async () => {
     const res = await getProfile()
     user.value = res.data.user
     syncFormWithUser()
+
+    if (user.value.role === 'customer' && activeTab.value === 'orders') {
+      await fetchReturnRequests()
+    }
   } catch (err) {
     error.value = 'Failed to load profile. Please try again.'
   } finally {
@@ -698,10 +893,32 @@ const fetchOrders = async () => {
   try {
     const res = await getMyOrders()
     orders.value = res.data.orders || []
+    if (user.value.role === 'customer') {
+      await fetchReturnRequests()
+    }
   } catch (err) {
     ordersError.value = err?.response?.data?.message || 'Failed to load orders. Please try again.'
   } finally {
     ordersLoading.value = false
+  }
+}
+
+const fetchReturnRequests = async () => {
+  if (user.value.role !== 'customer') {
+    returnRequests.value = []
+    return
+  }
+
+  returnRequestsLoading.value = true
+  returnRequestsError.value = ''
+
+  try {
+    const res = await getMyReturnRequests()
+    returnRequests.value = res.data.returnRequests || []
+  } catch (err) {
+    returnRequestsError.value = err?.response?.data?.message || 'Failed to load return requests. Please try again.'
+  } finally {
+    returnRequestsLoading.value = false
   }
 }
 
@@ -796,6 +1013,15 @@ const formatInvoiceStatus = (status) => {
   return labels[status] || status
 }
 
+const formatReturnStatus = (status) => {
+  const labels = {
+    pending: 'Pending',
+    approved: 'Approved',
+    rejected: 'Rejected',
+  }
+  return labels[status] || status
+}
+
 const getDisplayTimeline = (order) => {
   const timeline = Array.isArray(order.timeline) ? order.timeline : []
   const shippedStep = timeline.find((step) => step.key === 'shipped')
@@ -841,6 +1067,15 @@ const getInvoiceStatusClass = (status) => {
   return classes[status] || 'bg-gray-100 text-gray-700'
 }
 
+const getReturnStatusClass = (status) => {
+  const classes = {
+    pending: 'bg-amber-100 text-amber-700',
+    approved: 'bg-emerald-100 text-emerald-700',
+    rejected: 'bg-red-100 text-red-700',
+  }
+  return classes[status] || 'bg-gray-100 text-gray-700'
+}
+
 const goToProductReview = (productId) => {
   router.push({
     path: `/products/${productId}`,
@@ -850,6 +1085,180 @@ const goToProductReview = (productId) => {
 
 const canCancelOrder = (order) => {
   return order.status === 'paid' && order.deliveryStatus === 'processing'
+}
+
+const getReturnRequestForOrder = (orderId) => {
+  return returnRequests.value.find((request) => request.orderId === orderId)
+}
+
+const getReturnRequestForItem = (orderId, productId) => {
+  const request = getReturnRequestForOrder(orderId)
+  return request?.items?.find((item) => item.productId === productId)
+}
+
+const getReturnedQuantityForItem = (orderId, productId) => {
+  return Number(getReturnRequestForItem(orderId, productId)?.quantity || 0)
+}
+
+const isItemFullyReturned = (order, item) => {
+  return getReturnedQuantityForItem(order.id, item.productId) >= Number(item.quantity || 0)
+}
+
+const canReviewItem = (order, item) => {
+  return order.deliveryStatus === 'delivered' && !isItemFullyReturned(order, item)
+}
+
+const getReviewButtonLabel = (order, item) => {
+  if (isItemFullyReturned(order, item)) return 'Return Requested'
+  return order.deliveryStatus === 'delivered' ? 'Leave Review' : 'Available after delivery'
+}
+
+const canRequestReturn = (order) => {
+  return user.value.role === 'customer' &&
+    order.status === 'paid' &&
+    order.deliveryStatus === 'delivered' &&
+    !getReturnRequestForOrder(order.id)
+}
+
+const startReturnRequest = (order, item) => {
+  returnFormError.value = ''
+  returnForm.value = {
+    orderId: order.id,
+    items: [{ productId: item.productId, quantity: 1 }],
+    reason: '',
+  }
+}
+
+const cancelReturnRequest = () => {
+  returnFormError.value = ''
+  returnForm.value = {
+    orderId: '',
+    items: [],
+    reason: '',
+  }
+}
+
+const isReturnItemSelected = (productId) => {
+  return returnForm.value.items.some((item) => item.productId === productId)
+}
+
+const getReturnItemQuantity = (productId) => {
+  return returnForm.value.items.find((item) => item.productId === productId)?.quantity ?? ''
+}
+
+const toggleReturnItem = (item, checked) => {
+  if (checked) {
+    if (!isReturnItemSelected(item.productId)) {
+      returnForm.value.items.push({ productId: item.productId, quantity: 1 })
+    }
+    return
+  }
+
+  returnForm.value.items = returnForm.value.items.filter(
+    (selectedItem) => selectedItem.productId !== item.productId
+  )
+}
+
+const updateReturnItemQuantity = (item, value) => {
+  let nextQuantity = value
+
+  if (value !== '') {
+    const parsedQuantity = Number(value)
+    const maxQuantity = Number(item.quantity || 1)
+
+    if (!Number.isFinite(parsedQuantity)) {
+      nextQuantity = ''
+    } else if (parsedQuantity > maxQuantity) {
+      nextQuantity = maxQuantity
+    } else if (parsedQuantity < 1) {
+      nextQuantity = value
+    } else {
+      nextQuantity = Math.floor(parsedQuantity)
+    }
+  }
+
+  returnForm.value.items = returnForm.value.items.map((selectedItem) =>
+    selectedItem.productId === item.productId
+      ? { ...selectedItem, quantity: nextQuantity }
+      : selectedItem
+  )
+}
+
+const normalizeReturnItemQuantity = (item) => {
+  const selectedItem = returnForm.value.items.find(
+    (returnItem) => returnItem.productId === item.productId
+  )
+  const parsedQuantity = Number(selectedItem?.quantity)
+  const boundedQuantity = Math.min(
+    Number(item.quantity || 1),
+    Math.max(1, Number.isInteger(parsedQuantity) ? parsedQuantity : 1)
+  )
+
+  returnForm.value.items = returnForm.value.items.map((returnItem) =>
+    returnItem.productId === item.productId
+      ? { ...returnItem, quantity: boundedQuantity }
+      : returnItem
+  )
+}
+
+const getReturnFormRefund = (order) => {
+  const quantityByProductId = returnForm.value.items.reduce((acc, item) => {
+    acc[item.productId] = Number(item.quantity || 0)
+    return acc
+  }, {})
+
+  return order.items.reduce((total, item) => {
+    const returnQuantity = quantityByProductId[item.productId] || 0
+    return total + Number(item.unitPrice || 0) * returnQuantity
+  }, 0)
+}
+
+const handleSubmitReturnRequest = async (order) => {
+  returnFormError.value = ''
+
+  if (returnForm.value.items.length === 0) {
+    returnFormError.value = 'Select at least one item to return.'
+    return
+  }
+
+  const invalidQuantityItem = returnForm.value.items.find((returnItem) => {
+    const orderedItem = order.items.find((item) => item.productId === returnItem.productId)
+    const quantity = Number(returnItem.quantity)
+    return !Number.isInteger(quantity) ||
+      quantity < 1 ||
+      quantity > Number(orderedItem?.quantity || 0)
+  })
+
+  if (invalidQuantityItem) {
+    returnFormError.value = 'Enter a valid return quantity for each selected item.'
+    return
+  }
+
+  const reason = returnForm.value.reason.trim()
+
+  if (!reason) {
+    returnFormError.value = 'Enter a return reason.'
+    return
+  }
+
+  submittingReturn.value = true
+
+  try {
+    await submitReturnRequest({
+      orderId: order.id,
+      items: returnForm.value.items.map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity),
+      })),
+      reason,
+    })
+    cancelReturnRequest()
+    await fetchReturnRequests()
+  } catch (err) {
+    returnFormError.value = err?.response?.data?.message || 'Failed to submit return request. Please try again.'
+  } finally {
+    submittingReturn.value = false
+  }
 }
 
 const handleCancelOrder = async (order) => {
@@ -1112,6 +1521,10 @@ watch(
 
     if (tab === 'invoices' && !invoicesLoading.value) {
       fetchInvoices()
+    }
+
+    if (tab === 'returns' && !returnRequestsLoading.value) {
+      fetchReturnRequests()
     }
 
     if (tab === 'wishlist' && !wishlistLoading.value) {

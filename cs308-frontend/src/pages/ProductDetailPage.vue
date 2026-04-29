@@ -273,7 +273,22 @@ const reviewErrors = reactive({
   general: '',
 })
 
-const currentUserId = computed(() => String(authStore.user?.id || authStore.user?._id || ''))
+const getUserIdFromToken = () => {
+  try {
+    const payload = authStore.token?.split('.')?.[1]
+    if (!payload) return ''
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const decodedPayload = JSON.parse(window.atob(normalizedPayload))
+    return String(decodedPayload.id || decodedPayload._id || '')
+  } catch (_error) {
+    return ''
+  }
+}
+
+const currentUserId = computed(() =>
+  String(authStore.user?.id || authStore.user?._id || getUserIdFromToken())
+)
 const isEditingReview = computed(() => Boolean(editingReviewId.value))
 
 const goBack = () => {
@@ -302,6 +317,33 @@ const resetReviewForm = () => {
   reviewForm.rating = ''
   reviewForm.comment = ''
   hoverRating.value = 0
+}
+
+const getReviewSubmitErrorMessage = (responseData) => {
+  const errors = responseData?.details || responseData?.errors || {}
+
+  if (errors.productId) return errors.productId
+
+  const messages = {
+    PURCHASE_REQUIRED: 'You can only review products you have purchased.',
+    DELIVERY_REQUIRED: 'You can review this product after the order is delivered.',
+    ORDER_CANCELLED: 'Cancelled orders are not eligible for reviews.',
+    RETURN_REQUESTED: 'Returned products are not eligible for reviews.',
+    DUPLICATE_REVIEW: 'You have already reviewed this product.',
+  }
+
+  if (responseData?.code && messages[responseData.code]) {
+    return messages[responseData.code]
+  }
+
+  if (
+    responseData?.message &&
+    responseData.message.trim().toLowerCase() !== 'verification failed'
+  ) {
+    return responseData.message
+  }
+
+  return 'This product is not eligible for review. Reviews are only available for delivered purchases that have not been returned.'
 }
 
 const isOwnReview = (review) =>
@@ -434,11 +476,12 @@ const handleReviewSubmit = async () => {
   } catch (err) {
     const responseData = err?.response?.data
     const errors = responseData?.details || responseData?.errors || {}
+    const message = getReviewSubmitErrorMessage(responseData)
 
     reviewErrors.rating = errors.rating || ''
     reviewErrors.comment = errors.comment || ''
-    reviewErrors.general = errors.productId || responseData?.message || 'Failed to submit review.'
-    reviewMessage.value = responseData?.message || 'Failed to submit review.'
+    reviewErrors.general = message
+    reviewMessage.value = message
     reviewMessageTone.value = 'error'
     console.error(err)
   } finally {

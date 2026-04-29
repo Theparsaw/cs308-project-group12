@@ -3,6 +3,7 @@ const Review = require("../models/Review");
 const User = require("../models/User");
 const Order = require("../models/Order");
 const Delivery = require("../models/Delivery");
+const ReturnRequest = require("../models/ReturnRequest");
 const mongoose = require("mongoose");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -55,6 +56,60 @@ const throwCancelledOrderReviewError = () => {
   );
 };
 
+const throwReturnedProductReviewError = () => {
+  throw new AppError(
+    "You cannot review a product after submitting a return request for it",
+    403,
+    "RETURN_REQUESTED",
+    {
+      productId: "You cannot review a product after submitting a return request for it",
+    }
+  );
+};
+
+const sumProductQuantity = (items = [], productId) =>
+  items
+    .filter((item) => String(item.productId) === String(productId))
+    .reduce((total, item) => total + Number(item.quantity || 0), 0);
+
+const getDeliveredPurchasedQuantity = async (userId, productId) => {
+  const deliveries = await Delivery.find({
+    userId: String(userId).trim(),
+    status: "delivered",
+    items: {
+      $elemMatch: {
+        productId,
+      },
+    },
+  }).lean();
+
+  return deliveries.reduce(
+    (total, delivery) => total + sumProductQuantity(delivery.items, productId),
+    0
+  );
+};
+
+const getReturnedQuantity = async (userId, productId) => {
+  const returnRequests = await ReturnRequest.find({
+    userId: String(userId).trim(),
+    "items.productId": productId,
+  }).lean();
+
+  return returnRequests.reduce(
+    (total, request) => total + sumProductQuantity(request.items, productId),
+    0
+  );
+};
+
+const hasFullyReturnedProduct = async (userId, productId) => {
+  const deliveredPurchasedQuantity = await getDeliveredPurchasedQuantity(userId, productId);
+
+  if (deliveredPurchasedQuantity === 0) return false;
+
+  const returnedQuantity = await getReturnedQuantity(userId, productId);
+  return returnedQuantity >= deliveredPurchasedQuantity;
+};
+
 const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
   const { requireProductId = true } = options;
   const errors = {};
@@ -88,19 +143,38 @@ const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
 
 const getApprovedReviewsForProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
+  const trimmedProductId = String(productId || "").trim();
 
-  if (!productId || !String(productId).trim()) {
+  if (!trimmedProductId) {
     throw new AppError("productId is required", 400, "VALIDATION_ERROR");
   }
 
   const reviews = await Review.find({
-    productId: String(productId).trim(),
+    productId: trimmedProductId,
     status: "approved",
   })
     .sort({ createdAt: -1 })
     .lean();
 
-  const userIds = reviews
+  const eligibilityChecks = await Promise.all(
+    reviews.map(async (review) => {
+      const isFullyReturned = await hasFullyReturnedProduct(
+        review.userId,
+        trimmedProductId
+      );
+
+      return {
+        review,
+        isEligible: !isFullyReturned,
+      };
+    })
+  );
+
+  const eligibleReviews = eligibilityChecks
+    .filter((check) => check.isEligible)
+    .map((check) => check.review);
+
+  const userIds = eligibleReviews
     .map((review) => review.userId)
     .filter((id) => mongoose.Types.ObjectId.isValid(id));
 
@@ -113,7 +187,7 @@ const getApprovedReviewsForProduct = asyncHandler(async (req, res) => {
     return acc;
   }, {});
 
-  const data = reviews.map((review) => ({
+  const data = eligibleReviews.map((review) => ({
     _id: review._id,
     productId: review.productId,
     userId: review.userId,
@@ -237,6 +311,10 @@ const createReview = asyncHandler(async (req, res) => {
         productId: "You can only review products after they have been delivered",
       }
     );
+  }
+
+  if (await hasFullyReturnedProduct(userId, trimmedProductId)) {
+    throwReturnedProductReviewError();
   }
 
   const review = await Review.create({

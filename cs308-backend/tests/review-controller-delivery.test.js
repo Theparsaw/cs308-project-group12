@@ -14,6 +14,12 @@ jest.mock("../models/Order", () => ({
 
 jest.mock("../models/Delivery", () => ({
   distinct: jest.fn(),
+  find: jest.fn(),
+}));
+
+jest.mock("../models/ReturnRequest", () => ({
+  exists: jest.fn(),
+  find: jest.fn(),
 }));
 
 jest.mock("../models/User", () => ({
@@ -25,6 +31,7 @@ const Product = require("../models/Product");
 const Review = require("../models/Review");
 const Order = require("../models/Order");
 const Delivery = require("../models/Delivery");
+const ReturnRequest = require("../models/ReturnRequest");
 const { createReview, updateReview } = require("../controllers/reviewController");
 
 const createRes = () => {
@@ -43,11 +50,25 @@ const buildReq = () => ({
   },
 });
 
+const createQuery = (data) => ({
+  lean: jest.fn().mockResolvedValue(data),
+});
+
+const buildDelivery = (orderId, quantity = 1) => ({
+  _id: orderId,
+  userId: "user-1",
+  status: "delivered",
+  items: [{ productId: "p001", name: "Keyboard", unitPrice: 80, quantity }],
+});
+
 describe("createReview delivery requirement", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     Product.findOne.mockResolvedValue({ productId: "p001" });
     Review.findOne.mockResolvedValue(null);
+    ReturnRequest.exists.mockResolvedValue(null);
+    ReturnRequest.find.mockReturnValue(createQuery([]));
+    Delivery.find.mockReturnValue(createQuery([]));
   });
 
   test("rejects reviews when the product has not been purchased", async () => {
@@ -177,6 +198,7 @@ describe("createReview delivery requirement", () => {
     };
 
     Delivery.distinct.mockResolvedValue([orderId]);
+    Delivery.find.mockReturnValue(createQuery([buildDelivery(orderId)]));
     Order.exists
       .mockResolvedValueOnce({ _id: orderId })
       .mockResolvedValueOnce({ _id: orderId });
@@ -207,6 +229,10 @@ describe("createReview delivery requirement", () => {
         },
       },
     });
+    expect(ReturnRequest.find).toHaveBeenCalledWith({
+      userId: "user-1",
+      "items.productId": "p001",
+    });
     expect(Review.create).toHaveBeenCalledWith({
       userId: "user-1",
       productId: "p001",
@@ -222,6 +248,82 @@ describe("createReview delivery requirement", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test("rejects reviews after all delivered quantity has been returned", async () => {
+    const orderId = new mongoose.Types.ObjectId().toString();
+
+    Delivery.distinct.mockResolvedValue([orderId]);
+    Delivery.find.mockReturnValue(createQuery([buildDelivery(orderId, 2)]));
+    Order.exists
+      .mockResolvedValueOnce({ _id: orderId })
+      .mockResolvedValueOnce({ _id: orderId });
+    ReturnRequest.find.mockReturnValue(createQuery([
+      {
+        userId: "user-1",
+        items: [{ productId: "p001", name: "Keyboard", unitPrice: 80, quantity: 2 }],
+      },
+    ]));
+
+    const req = buildReq();
+    const res = createRes();
+    const next = jest.fn();
+
+    await createReview(req, res, next);
+
+    expect(ReturnRequest.find).toHaveBeenCalledWith({
+      userId: "user-1",
+      "items.productId": "p001",
+    });
+    expect(Review.create).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 403,
+        code: "RETURN_REQUESTED",
+        message: "You cannot review a product after submitting a return request for it",
+      })
+    );
+  });
+
+  test("allows reviews when only part of the delivered quantity has been returned", async () => {
+    const orderId = new mongoose.Types.ObjectId().toString();
+    const createdReview = {
+      _id: new mongoose.Types.ObjectId().toString(),
+      userId: "user-1",
+      productId: "p001",
+      rating: 5,
+      comment: "This product arrived in excellent condition.",
+      status: "pending",
+    };
+
+    Delivery.distinct.mockResolvedValue([orderId]);
+    Delivery.find.mockReturnValue(createQuery([buildDelivery(orderId, 4)]));
+    Order.exists
+      .mockResolvedValueOnce({ _id: orderId })
+      .mockResolvedValueOnce({ _id: orderId });
+    ReturnRequest.find.mockReturnValue(createQuery([
+      {
+        userId: "user-1",
+        items: [{ productId: "p001", name: "Keyboard", unitPrice: 80, quantity: 2 }],
+      },
+    ]));
+    Review.create.mockResolvedValue(createdReview);
+
+    const req = buildReq();
+    const res = createRes();
+    const next = jest.fn();
+
+    await createReview(req, res, next);
+
+    expect(Review.create).toHaveBeenCalledWith({
+      userId: "user-1",
+      productId: "p001",
+      rating: 5,
+      comment: "This product arrived in excellent condition.",
+      status: "pending",
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test("creates an approved rating-only review after delivery", async () => {
     const orderId = new mongoose.Types.ObjectId().toString();
     const createdReview = {
@@ -234,6 +336,7 @@ describe("createReview delivery requirement", () => {
     };
 
     Delivery.distinct.mockResolvedValue([orderId]);
+    Delivery.find.mockReturnValue(createQuery([buildDelivery(orderId)]));
     Order.exists
       .mockResolvedValueOnce({ _id: orderId })
       .mockResolvedValueOnce({ _id: orderId });
