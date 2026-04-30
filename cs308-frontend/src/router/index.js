@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authStore } from '../store/auth'
-
+import SalesPricingPage from '../pages/admin/SalesPricingPage.vue'
 // Public pages
 import ProductsPage from '../pages/ProductsPage.vue'
 import ProductDetailPage from '../pages/ProductDetailPage.vue'
@@ -99,6 +99,11 @@ const routes = [
       {
         path: 'deliveries',
         component: SalesDeliveriesPage,
+        meta: salesManagerMeta,
+      },
+      {
+        path: 'pricing',
+        component: SalesPricingPage,
         meta: salesManagerMeta,
       },
     ],

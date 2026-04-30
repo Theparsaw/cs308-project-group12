@@ -61,6 +61,7 @@ const navItems = computed(() => {
   if (userRole.value === 'sales_manager') {
     return [
       { label: 'Deliveries', to: '/admin/deliveries' },
+      { label: 'Pricing', to: '/admin/pricing' },
     ]
   }
 
