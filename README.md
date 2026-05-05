@@ -335,8 +335,6 @@ curl -X POST http://localhost:5001/api/products \
 | Returns | `/api/returns` | `GET /my-returns`, `POST /`. |
 | Wishlist | `/api/wishlist` | `GET /`, `POST /items`, `DELETE /items/:productId`. |
 
-See [`API.md`](./API.md) for additional endpoint notes.
-
 ## Testing
 
 Run backend tests:
