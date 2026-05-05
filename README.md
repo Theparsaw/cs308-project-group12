@@ -264,23 +264,76 @@ Frontend route guards restrict admin screens by role, and backend middleware enf
 
 ## API Overview
 
-The backend exposes the following API groups:
+The backend runs on `http://localhost:5001` and mounts all REST routes under:
+
+```text
+http://localhost:5001/api
+```
+
+Protected endpoints expect a JWT in the standard bearer-token header:
+
+```http
+Authorization: Bearer <token>
+```
+
+Use the project-level `productId` field for product routes instead of MongoDB `_id`, and send JSON request bodies with camelCase field names.
+
+### Product API
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/products` | Public | List products. Supports `search` and `sort` query parameters. |
+| `GET` | `/api/products/:productId` | Public | Get one product by `productId`. |
+| `POST` | `/api/products` | Sales manager or product manager | Create a product. |
+| `PUT` | `/api/products/:productId` | Sales manager or product manager | Update a product. |
+| `DELETE` | `/api/products/:productId` | Sales manager or product manager | Delete a product. |
+
+Supported product list query parameters:
+
+| Parameter | Values | Description |
+| --- | --- | --- |
+| `search` | Any text | Searches product name, model, description, category ID, and product ID. |
+| `sort` | `price_asc`, `price_desc`, `popularity` | Sorts by price or by paid-order sales volume. |
+
+Every product response includes `popularity`, `averageRating`, and `reviewCount`.
+
+Example create-product request:
+
+```bash
+curl -X POST http://localhost:5001/api/products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "productId": "p021",
+    "categoryId": "cat1",
+    "name": "Apple",
+    "model": "iPhone 16",
+    "serialNumber": "APL-IP16-001",
+    "description": "New product",
+    "quantityInStock": 10,
+    "price": 1399,
+    "warrantyStatus": "2 years",
+    "distributorInfo": "Apple Turkiye"
+  }'
+```
+
+### Route Groups
 
 | Resource | Base Route | Purpose |
 | --- | --- | --- |
-| Authentication | `/api/auth` | Register, login, read and update current user profile. |
-| Products | `/api/products` | Product listing, search, sorting, details, create, update, delete. |
-| Categories | `/api/categories` | Category listing and product-manager category administration. |
-| Cart | `/api/cart` | Authenticated cart retrieval and item quantity management. |
-| Checkout | `/api/checkout` | Checkout validation and order creation from a cart. |
-| Payments | `/api/payments` | Payment preparation and processing for orders. |
-| Orders | `/api/orders` | Customer order history and order cancellation. |
-| Deliveries | `/api/deliveries` | Sales-manager delivery listing and status updates. |
-| Reviews | `/api/reviews` | Customer review creation and product review listing. |
-| Moderation | `/api/moderation` | Product-manager review approval and rejection. |
-| Invoices | `/api/invoices` | Invoice listing and PDF download. |
-| Returns | `/api/returns` | Customer return request creation and tracking. |
-| Wishlist | `/api/wishlist` | Customer wishlist retrieval and item updates. |
+| Authentication | `/api/auth` | `POST /register`, `POST /login`, `GET /me`, `PUT /me`. |
+| Products | `/api/products` | `GET /`, `GET /:productId`, `POST /`, `PUT /:productId`, `DELETE /:productId`. |
+| Categories | `/api/categories` | `GET /`, `GET /:id`, `POST /`, `PUT /:id`, `DELETE /:id`. |
+| Cart | `/api/cart` | `GET /:cartId`, `POST /:cartId/items`, `PATCH /:cartId/items/:productId`, `DELETE /:cartId/items/:productId`. |
+| Checkout | `/api/checkout` | `GET /:cartId`, `POST /:cartId/validate`, `POST /:cartId/order`. |
+| Payments | `/api/payments` | `GET /order/:orderId`, `POST /:orderId`. |
+| Orders | `/api/orders` | `GET /my-orders`, `PATCH /:orderId/cancel`. |
+| Deliveries | `/api/deliveries` | `GET /`, `PATCH /:id/status`. |
+| Reviews | `/api/reviews` | `GET /product/:productId`, `POST /`, `PATCH /:id`. |
+| Moderation | `/api/moderation` | `GET /reviews/pending`, `PATCH /reviews/:id/approve`, `PATCH /reviews/:id/reject`. |
+| Invoices | `/api/invoices` | `GET /my-invoices`, `GET /:invoiceId/download`. |
+| Returns | `/api/returns` | `GET /my-returns`, `POST /`. |
+| Wishlist | `/api/wishlist` | `GET /`, `POST /items`, `DELETE /items/:productId`. |
 
 See [`API.md`](./API.md) for additional endpoint notes.
 
