@@ -17,6 +17,7 @@ A full-stack e-commerce platform developed for the CS308 course project. The app
 - [API Overview](#api-overview)
 - [Testing](#testing)
 - [Development Notes](#development-notes)
+- [License](#license)
 
 ## Overview
 
@@ -311,3 +312,7 @@ The backend test suite includes coverage for authentication, products, categorie
 - Popularity is calculated from paid orders by summing sold quantities per product.
 - Uploaded profile images are served from the backend `/uploads` path.
 - Keep generated files, `.env`, and `node_modules` out of version control.
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
