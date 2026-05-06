@@ -42,25 +42,24 @@ const route = useRoute()
 const userRole = computed(() => authStore.role)
 
 const panelKicker = computed(() => {
-  return userRole.value === 'sales_manager' ? 'Sales Panel' : 'Admin Panel'
+  return userRole.value === 'sales_manager' ? 'Sales Panel' : 'Product Manager Panel'
 })
 
 const panelTitle = computed(() => {
   return userRole.value === 'sales_manager'
-    ? 'Shipment Management'
+    ? 'Pricing Management'
     : 'Store Management'
 })
 
 const panelDescription = computed(() => {
   return userRole.value === 'sales_manager'
-    ? 'Track deliveries and update shipment status.'
-    : 'Manage products, reviews, and stock safely.'
+    ? 'Manage product prices.'
+    : 'Manage products, categories, reviews, stock, and deliveries.'
 })
 
 const navItems = computed(() => {
   if (userRole.value === 'sales_manager') {
     return [
-      { label: 'Deliveries', to: '/admin/deliveries' },
       { label: 'Pricing', to: '/admin/pricing' },
     ]
   }
@@ -71,6 +70,7 @@ const navItems = computed(() => {
     { label: 'Categories', to: '/admin/categories' },
     { label: 'Reviews & Ratings', to: '/admin/reviews' },
     { label: 'Stock', to: '/admin/stock' },
+    { label: 'Deliveries', to: '/admin/deliveries' },
   ]
 })
 

@@ -1,16 +1,16 @@
 <template>
   <div>
     <div class="mb-6">
-      <p class="text-sm font-semibold text-orange-600 mb-2">Sales Management</p>
-      <h1 class="text-3xl font-bold text-gray-900">Shipment Status Management</h1>
+      <p class="text-sm font-semibold text-orange-600 mb-2">Product Management</p>
+      <h1 class="text-3xl font-bold text-gray-900">Invoice & Delivery Management</h1>
       <p class="text-gray-600 mt-2">
-        Monitor paid orders and update delivery progress quickly.
+        View delivery-related invoice details, purchased products, quantities, addresses, and completion status.
       </p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-6">
       <div class="bg-white border border-gray-200 rounded-3xl p-5">
-        <p class="text-sm text-gray-500 mb-2">Total</p>
+        <p class="text-sm text-gray-500 mb-2">Total Deliveries</p>
         <p class="text-3xl font-bold text-gray-900">{{ deliveries.length }}</p>
       </div>
 
@@ -20,18 +20,18 @@
       </div>
 
       <div class="bg-white border border-gray-200 rounded-3xl p-5">
-        <p class="text-sm text-gray-500 mb-2">Shipped</p>
-        <p class="text-3xl font-bold text-gray-900">{{ shippedCount }}</p>
-      </div>
-
-      <div class="bg-white border border-gray-200 rounded-3xl p-5">
-        <p class="text-sm text-gray-500 mb-2">In transit</p>
+        <p class="text-sm text-gray-500 mb-2">In Transit</p>
         <p class="text-3xl font-bold text-gray-900">{{ outForDeliveryCount }}</p>
       </div>
 
       <div class="bg-white border border-gray-200 rounded-3xl p-5">
         <p class="text-sm text-gray-500 mb-2">Delivered</p>
         <p class="text-3xl font-bold text-gray-900">{{ deliveredCount }}</p>
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded-3xl p-5">
+        <p class="text-sm text-gray-500 mb-2">Not Completed</p>
+        <p class="text-3xl font-bold text-gray-900">{{ notCompletedCount }}</p>
       </div>
     </div>
 
@@ -41,7 +41,7 @@
           <input
             v-model="searchTerm"
             type="text"
-            placeholder="Search by order ID, customer name, or email..."
+            placeholder="Search by delivery ID, order ID, customer ID, invoice number, product ID, or address..."
             class="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
           />
         </div>
@@ -50,6 +50,7 @@
           <button
             v-for="option in filterOptions"
             :key="option.value"
+            type="button"
             @click="statusFilter = option.value"
             class="rounded-full border px-4 py-2 text-sm font-medium transition"
             :class="statusFilter === option.value
@@ -77,34 +78,47 @@
       No deliveries found.
     </div>
 
-    <div v-else class="space-y-4">
-      <div
+    <div v-else class="space-y-5">
+      <article
         v-for="delivery in filteredDeliveries"
         :key="delivery.id"
         class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"
       >
-        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div class="space-y-4 flex-1">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div class="space-y-5 flex-1">
+            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Order ID</p>
-                <p class="text-lg font-bold text-gray-900 break-all">{{ delivery.orderId }}</p>
-                <p class="text-sm text-gray-500 mt-1">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Delivery ID</p>
+                <p class="text-lg font-bold text-gray-900 break-all">{{ delivery.id }}</p>
+
+                <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Order ID</p>
+                <p class="text-sm font-semibold text-gray-800 break-all">{{ delivery.orderId }}</p>
+
+                <p class="text-sm text-gray-500 mt-2">
                   Created {{ formatDate(delivery.createdAt) }}
                 </p>
               </div>
 
-              <div>
+              <div class="flex flex-wrap items-center gap-2">
                 <span
                   class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
                   :class="getStatusBadgeClass(delivery.status)"
                 >
                   {{ formatStatusLabel(delivery.status) }}
                 </span>
+
+                <span
+                  class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  :class="isCompleted(delivery)
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'"
+                >
+                  {{ isCompleted(delivery) ? 'Completed' : 'Not Completed' }}
+                </span>
               </div>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div class="rounded-2xl bg-gray-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Customer</p>
                 <p class="font-semibold text-gray-900">
@@ -113,44 +127,103 @@
                 <p class="text-sm text-gray-500 break-all">
                   {{ delivery.customerEmail || 'No email' }}
                 </p>
-              </div>
-
-              <div class="rounded-2xl bg-gray-50 p-4">
-                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Order Total</p>
-                <p class="text-xl font-bold text-gray-900">
-                  {{ formatCurrency(delivery.totalPrice) }}
+                <p class="mt-2 text-xs text-gray-500 break-all">
+                  Customer ID: {{ delivery.userId || 'Unknown' }}
                 </p>
               </div>
 
               <div class="rounded-2xl bg-gray-50 p-4">
-                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Address</p>
-                <p class="text-sm text-gray-700">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Invoice</p>
+
+                <template v-if="delivery.invoiceNumber">
+                  <p class="font-semibold text-gray-900 break-all">
+                    {{ delivery.invoiceNumber }}
+                  </p>
+                  <p class="text-sm text-gray-500">
+                    Status: {{ formatInvoiceStatus(delivery.invoiceStatus) }}
+                  </p>
+                  <p class="text-sm text-gray-500">
+                    Amount: {{ formatCurrency(delivery.invoiceAmount) }}
+                  </p>
+
+                  <button
+                    type="button"
+                    class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                    :disabled="downloadingInvoiceIds.has(delivery.id)"
+                    @click="handleDownloadInvoice(delivery)"
+                  >
+                    {{ downloadingInvoiceIds.has(delivery.id) ? 'Preparing PDF...' : 'Download Invoice PDF' }}
+                  </button>
+                </template>
+
+                <p v-else class="text-sm text-gray-500">
+                  No invoice linked
+                </p>
+              </div>
+
+              <div class="rounded-2xl bg-gray-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Total Price</p>
+                <p class="text-xl font-bold text-gray-900">
+                  {{ formatCurrency(delivery.totalPrice) }}
+                </p>
+                <p class="mt-2 text-xs text-gray-500">
+                  {{ getTotalItemCount(delivery.items) }} item(s) in delivery
+                </p>
+              </div>
+
+              <div class="rounded-2xl bg-gray-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Delivery Address</p>
+                <p class="text-sm text-gray-700 whitespace-pre-line">
                   {{ delivery.address || 'Not provided' }}
                 </p>
               </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 p-4">
-              <div class="flex items-center justify-between mb-3">
-                <p class="text-sm font-semibold text-gray-900">Items</p>
+            <div class="overflow-hidden rounded-2xl border border-gray-200">
+              <div class="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <p class="text-sm font-semibold text-gray-900">Products to be Delivered</p>
                 <p class="text-xs text-gray-500">
                   {{ getTotalItemCount(delivery.items) }} item(s)
                 </p>
               </div>
 
-              <div class="space-y-2">
+              <div class="hidden grid-cols-[1.1fr_0.7fr_0.5fr_0.7fr_0.8fr] gap-4 border-b border-gray-100 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 md:grid">
+                <span>Product</span>
+                <span>Product ID</span>
+                <span>Quantity</span>
+                <span>Unit Price</span>
+                <span class="text-right">Line Total</span>
+              </div>
+
+              <div class="divide-y divide-gray-100">
                 <div
                   v-for="item in delivery.items"
                   :key="`${delivery.id}-${item.productId}`"
-                  class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2"
+                  class="grid gap-3 px-4 py-4 text-sm md:grid-cols-[1.1fr_0.7fr_0.5fr_0.7fr_0.8fr] md:items-center"
                 >
-                  <div class="pr-4">
-                    <p class="text-sm font-medium text-gray-900">{{ item.name }}</p>
-                    <p class="text-xs text-gray-500">Product ID: {{ item.productId }}</p>
+                  <div>
+                    <p class="font-semibold text-gray-900">{{ item.name }}</p>
+                    <p class="text-xs text-gray-500 md:hidden">Product ID: {{ item.productId }}</p>
                   </div>
 
-                  <div class="text-sm text-gray-700 whitespace-nowrap">
-                    × {{ item.quantity }}
+                  <div class="text-gray-700 break-all">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Product ID: </span>
+                    {{ item.productId }}
+                  </div>
+
+                  <div class="font-semibold text-gray-900">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Quantity: </span>
+                    {{ item.quantity }}
+                  </div>
+
+                  <div class="text-gray-700">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Unit Price: </span>
+                    {{ item.unitPrice !== undefined ? formatCurrency(item.unitPrice) : '—' }}
+                  </div>
+
+                  <div class="font-semibold text-gray-900 md:text-right">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 md:hidden">Line Total: </span>
+                    {{ getLineTotal(item) }}
                   </div>
                 </div>
               </div>
@@ -159,7 +232,7 @@
 
           <div class="xl:w-[320px] xl:pl-4">
             <div class="rounded-2xl border border-orange-200 bg-orange-50 p-4">
-              <p class="text-sm font-semibold text-orange-700 mb-3">Update Shipment Status</p>
+              <p class="text-sm font-semibold text-orange-700 mb-3">Update Delivery Status</p>
 
               <label class="block text-sm text-gray-700 mb-2">New status</label>
               <select
@@ -176,16 +249,21 @@
               </select>
 
               <button
+                type="button"
                 @click="handleUpdateStatus(delivery)"
                 :disabled="savingIds.has(delivery.id)"
                 class="mt-4 w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
               >
                 {{ savingIds.has(delivery.id) ? 'Updating...' : 'Save Status Update' }}
               </button>
+
+              <p class="mt-3 text-xs text-gray-500">
+                Delivered status means the delivery has been completed.
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </article>
     </div>
 
     <p
@@ -199,7 +277,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getDeliveries, updateDeliveryStatus } from '../../api/deliveryApi'
+import {
+  getDeliveries,
+  updateDeliveryStatus,
+  downloadDeliveryInvoice,
+} from '../../api/deliveryApi'
 
 const deliveries = ref([])
 const loading = ref(true)
@@ -209,6 +291,7 @@ const searchTerm = ref('')
 const statusFilter = ref('all')
 const selectedStatuses = ref({})
 const savingIds = ref(new Set())
+const downloadingInvoiceIds = ref(new Set())
 
 const allowedStatuses = [
   'processing',
@@ -220,7 +303,6 @@ const allowedStatuses = [
 const filterOptions = [
   { label: 'All', value: 'all' },
   { label: 'Processing', value: 'processing' },
-  { label: 'Shipped', value: 'shipped' },
   { label: 'In transit', value: 'out_for_delivery' },
   { label: 'Delivered', value: 'delivered' },
   { label: 'Cancelled', value: 'cancelled' },
@@ -228,10 +310,6 @@ const filterOptions = [
 
 const processingCount = computed(() =>
   deliveries.value.filter((d) => d.status === 'processing').length
-)
-
-const shippedCount = computed(() =>
-  deliveries.value.filter((d) => d.status === 'shipped').length
 )
 
 const outForDeliveryCount = computed(() =>
@@ -242,15 +320,31 @@ const deliveredCount = computed(() =>
   deliveries.value.filter((d) => d.status === 'delivered').length
 )
 
+const notCompletedCount = computed(() =>
+  deliveries.value.filter((d) => d.status !== 'delivered' && d.status !== 'cancelled').length
+)
+
 const filteredDeliveries = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
 
   return deliveries.value.filter((delivery) => {
+    const itemMatches = Array.isArray(delivery.items)
+      ? delivery.items.some((item) =>
+          String(item.productId ?? '').toLowerCase().includes(term) ||
+          String(item.name ?? '').toLowerCase().includes(term)
+        )
+      : false
+
     const matchesSearch =
       !term ||
+      String(delivery.id ?? '').toLowerCase().includes(term) ||
       String(delivery.orderId ?? '').toLowerCase().includes(term) ||
+      String(delivery.userId ?? '').toLowerCase().includes(term) ||
       String(delivery.customerName ?? '').toLowerCase().includes(term) ||
-      String(delivery.customerEmail ?? '').toLowerCase().includes(term)
+      String(delivery.customerEmail ?? '').toLowerCase().includes(term) ||
+      String(delivery.invoiceNumber ?? '').toLowerCase().includes(term) ||
+      String(delivery.address ?? '').toLowerCase().includes(term) ||
+      itemMatches
 
     const matchesFilter =
       statusFilter.value === 'all' || delivery.status === statusFilter.value
@@ -272,20 +366,43 @@ const getTotalItemCount = (items = []) => {
   return items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 }
 
+const getLineTotal = (item) => {
+  if (item.unitPrice === undefined || item.unitPrice === null) {
+    return '—'
+  }
+
+  return formatCurrency(Number(item.unitPrice || 0) * Number(item.quantity || 0))
+}
+
+const isCompleted = (delivery) => {
+  return delivery.status === 'delivered'
+}
+
 const formatStatusLabel = (status) => {
   switch (status) {
     case 'processing':
       return 'Processing'
-    case 'shipped':
-      return 'Shipped'
     case 'out_for_delivery':
       return 'In transit'
     case 'delivered':
       return 'Delivered'
     case 'cancelled':
-      return 'Canceled'
+      return 'Cancelled'
     default:
-      return status
+      return status || 'Unknown'
+  }
+}
+
+const formatInvoiceStatus = (status) => {
+  switch (status) {
+    case 'generated':
+      return 'Generated'
+    case 'emailed':
+      return 'Emailed'
+    case 'failed':
+      return 'Email Failed'
+    default:
+      return status || 'Unknown'
   }
 }
 
@@ -293,8 +410,6 @@ const getStatusBadgeClass = (status) => {
   switch (status) {
     case 'processing':
       return 'bg-yellow-100 text-yellow-700'
-    case 'shipped':
-      return 'bg-blue-100 text-blue-700'
     case 'out_for_delivery':
       return 'bg-purple-100 text-purple-700'
     case 'delivered':
@@ -328,6 +443,46 @@ const loadDeliveries = async () => {
   }
 }
 
+const handleDownloadInvoice = async (delivery) => {
+  error.value = ''
+  successMessage.value = ''
+
+  if (!delivery.invoiceNumber) {
+    error.value = 'No invoice is linked to this delivery.'
+    return
+  }
+
+  try {
+    downloadingInvoiceIds.value.add(delivery.id)
+    downloadingInvoiceIds.value = new Set(downloadingInvoiceIds.value)
+
+    const res = await downloadDeliveryInvoice(delivery.id)
+
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+
+    const safeInvoiceNumber = String(delivery.invoiceNumber || `invoice-${delivery.id}`)
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${safeInvoiceNumber}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+
+    window.URL.revokeObjectURL(url)
+
+    successMessage.value = `Invoice PDF for ${delivery.invoiceNumber} downloaded successfully.`
+  } catch (err) {
+    error.value = err?.response?.data?.message || 'Failed to download invoice PDF'
+    console.error(err)
+  } finally {
+    downloadingInvoiceIds.value.delete(delivery.id)
+    downloadingInvoiceIds.value = new Set(downloadingInvoiceIds.value)
+  }
+}
+
 const handleUpdateStatus = async (delivery) => {
   error.value = ''
   successMessage.value = ''
@@ -351,9 +506,9 @@ const handleUpdateStatus = async (delivery) => {
     )
 
     selectedStatuses.value[delivery.id] = updatedDelivery.status
-    successMessage.value = `Shipment status for order ${delivery.orderId} updated successfully.`
+    successMessage.value = `Delivery status for order ${delivery.orderId} updated successfully.`
   } catch (err) {
-    error.value = err?.response?.data?.message || 'Failed to update shipment status'
+    error.value = err?.response?.data?.message || 'Failed to update delivery status'
     console.error(err)
   } finally {
     savingIds.value.delete(delivery.id)

@@ -209,7 +209,7 @@
 
           <router-link
             v-if="authStore.isLoggedIn && ['sales_manager', 'product_manager'].includes(authStore.role)"
-            to="/admin/products"
+            :to="adminHomeRoute"
             class="px-4 py-2.5 rounded-xl bg-orange-500 text-white font-medium hover:bg-orange-600 transition"
           >
             Admin
@@ -252,6 +252,18 @@ const activeSort = computed(() =>
 const showHeaderWishlist = computed(() =>
   authStore.isLoggedIn && authStore.role === 'customer'
 )
+
+const adminHomeRoute = computed(() => {
+  if (authStore.role === 'sales_manager') {
+    return '/admin/pricing'
+  }
+
+  if (authStore.role === 'product_manager') {
+    return '/admin/dashboard'
+  }
+
+  return '/'
+})
 
 const wishlistPreviewItems = computed(() => wishlistStore.items.slice(0, 4))
 const wishlistOverflowCount = computed(() => Math.max(wishlistStore.items.length - 4, 0))

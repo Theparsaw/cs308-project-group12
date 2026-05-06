@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authStore } from '../store/auth'
-import SalesPricingPage from '../pages/admin/SalesPricingPage.vue'
+
 // Public pages
 import ProductsPage from '../pages/ProductsPage.vue'
 import ProductDetailPage from '../pages/ProductDetailPage.vue'
@@ -21,6 +21,7 @@ import AdminReviewsPage from '../pages/admin/AdminReviewsPage.vue'
 import AdminStockPage from '../pages/admin/AdminStockPage.vue'
 import SalesDeliveriesPage from '../pages/admin/SalesDeliveriesPage.vue'
 import AdminCategoriesPage from '../pages/admin/AdminCategoriesPage.vue'
+import SalesPricingPage from '../pages/admin/SalesPricingPage.vue'
 
 const adminAreaMeta = {
   requiresAuth: true,
@@ -57,7 +58,7 @@ const routes = [
         path: '',
         redirect: () => {
           return authStore.role === 'sales_manager'
-            ? '/admin/deliveries'
+            ? '/admin/pricing'
             : '/admin/dashboard'
         },
       },
@@ -99,7 +100,7 @@ const routes = [
       {
         path: 'deliveries',
         component: SalesDeliveriesPage,
-        meta: salesManagerMeta,
+        meta: productManagerMeta,
       },
       {
         path: 'pricing',
