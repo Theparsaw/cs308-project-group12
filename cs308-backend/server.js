@@ -18,7 +18,7 @@ const wishlistRoutes = require("./routes/wishlistRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const discountCampaignRoutes = require("./routes/discountCampaignRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-
+const notificationRoutes = require("./routes/notificationRoutes");
 dotenv.config();
 
 connectDB();
@@ -48,6 +48,7 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/discount-campaigns", discountCampaignRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

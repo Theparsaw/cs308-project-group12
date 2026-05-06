@@ -36,6 +36,7 @@
             to="/cart"
             class="relative flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
           >
+          
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="w-5 h-5 text-gray-700"
@@ -56,6 +57,20 @@
               class="absolute -right-2 -top-2 inline-flex min-w-6 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-xs font-semibold text-white"
             >
               {{ cartStore.totalItems }}
+            </span>
+          </router-link>
+          <router-link
+            v-if="authStore.isLoggedIn && authStore.role === 'customer'"
+            to="/notifications"
+            class="relative flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 hover:shadow-sm hover:border-gray-400 transition"
+          >
+            <span class="text-lg">🔔</span>
+
+            <span
+              v-if="notificationStore.unreadCount > 0"
+              class="absolute -right-2 -top-2 inline-flex min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-semibold text-white"
+            >
+              {{ notificationStore.unreadCount }}
             </span>
           </router-link>
 
@@ -232,6 +247,7 @@ import { getCart, resetCartId } from './api/cartApi'
 import { authStore } from './store/auth'
 import { cartStore } from './store/cart'
 import { wishlistStore } from './store/wishlist'
+import { notificationStore } from './store/notificationStore'
 
 const router = useRouter()
 const route = useRoute()
@@ -336,5 +352,14 @@ watch(
   { immediate: true }
 )
 
-onMounted(syncCartCount)
+onMounted(() => {
+  syncCartCount()
+
+  if (
+    authStore.isLoggedIn &&
+    authStore.role === 'customer'
+  ) {
+    notificationStore.loadNotifications()
+  }
+})
 </script>
