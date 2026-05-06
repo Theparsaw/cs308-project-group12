@@ -2,6 +2,9 @@ const DiscountCampaign = require("../models/DiscountCampaign");
 const Product = require("../models/Product");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
+const Wishlist = require("../models/Wishlist");
+const Notification = require("../models/Notification");
+
 
 // CREATE CAMPAIGN
 const createCampaign = asyncHandler(async (req, res) => {
@@ -41,6 +44,50 @@ const createCampaign = asyncHandler(async (req, res) => {
     startDate,
     endDate,
   });
+  for (const productId of campaign.productIds) {
+
+    const product = await Product.findOne({
+      productId,
+    });
+
+    const wishlists = await Wishlist.find({
+      "items.productId": productId,
+    });
+
+    for (const wishlist of wishlists) {
+
+      await Notification.findOneAndUpdate(
+        {
+          userId: String(wishlist.userId),
+          productId,
+          campaignId: String(campaign._id),
+        },
+        {
+          userId: String(wishlist.userId),
+          productId,
+          campaignId: String(campaign._id),
+
+          productName:
+            product?.model ||
+            product?.name ||
+            "Product",
+
+          discountPercentage:
+            campaign.discountPercentage,
+
+          message:
+            `${product?.model || "A wishlisted product"} is now ${campaign.discountPercentage}% off.`,
+
+          isRead: false,
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+    }
+  }
 
   res.status(201).json({
     message: "Discount campaign created successfully",

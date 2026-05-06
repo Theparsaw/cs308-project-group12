@@ -10,6 +10,7 @@ import RegisterPage from '../pages/RegisterPage.vue'
 import CheckoutPage from '../pages/CheckoutPage.vue'
 import PaymentPage from '../pages/PaymentPage.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
+import NotificationsPage from '../pages/NotificationsPage.vue'
 
 // Admin layout + pages
 import AdminLayout from '../components/admin/AdminLayout.vue'
@@ -48,6 +49,10 @@ const routes = [
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
   { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
+  {
+  path: "/notifications",
+  component: NotificationsPage,
+  },
 
   {
     path: '/admin',
