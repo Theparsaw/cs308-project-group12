@@ -22,6 +22,25 @@ const cartItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    originalPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    discountPercentage: {
+      type: Number,
+      default: 0,
+    },
+
+    campaignName: {
+      type: String,
+      default: "",
+    },
+
+    hasDiscount: {
+      type: Boolean,
+      default: false,
+    },
     quantity: {
       type: Number,
       required: true,

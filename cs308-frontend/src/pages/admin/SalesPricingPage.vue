@@ -76,12 +76,179 @@
         No products found.
       </div>
     </div>
+    <!-- DISCOUNT CAMPAIGN MANAGEMENT -->
+
+    <div class="mt-10 rounded-3xl border border-gray-200 bg-white p-6">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">
+          Discount Campaign Management
+        </h2>
+
+        <p class="text-gray-600 mt-2">
+          Create and manage product discount campaigns.
+        </p>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <input
+          v-model="campaignForm.name"
+          type="text"
+          placeholder="Campaign name"
+          class="rounded-2xl border border-gray-300 px-4 py-3"
+        />
+
+        <input
+          v-model.number="campaignForm.discountPercentage"
+          type="number"
+          min="1"
+          max="100"
+          placeholder="Discount %"
+          class="rounded-2xl border border-gray-300 px-4 py-3"
+        />
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Campaign Start Date
+          </label>
+
+          <input
+            v-model="campaignForm.startDate"
+            type="date"
+            class="w-full rounded-2xl border border-gray-300 px-4 py-3"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Campaign End Date
+          </label>
+
+          <input
+            v-model="campaignForm.endDate"
+            type="date"
+            class="w-full rounded-2xl border border-gray-300 px-4 py-3"
+          />
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <p class="text-sm font-semibold text-gray-700 mb-3">
+          Select Products
+        </p>
+
+        <div class="max-h-60 overflow-y-auto rounded-2xl border border-gray-200 p-4 space-y-2">
+          <label
+            v-for="product in products"
+            :key="product.productId"
+            class="flex items-center gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50"
+          >
+            <input
+              v-model="campaignForm.productIds"
+              :value="product.productId"
+              type="checkbox"
+            />
+
+            <div>
+              <p class="font-semibold text-gray-900">
+                {{ product.name }}
+              </p>
+
+              <p class="text-xs text-gray-500">
+                {{ product.productId }}
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button
+        @click="handleCreateCampaign"
+        :disabled="creatingCampaign"
+        class="mt-6 rounded-2xl bg-orange-500 px-5 py-3 font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+      >
+        {{ creatingCampaign ? 'Creating...' : 'Create Campaign' }}
+      </button>
+
+      <p v-if="campaignSuccess" class="mt-3 text-sm text-green-600">
+        {{ campaignSuccess }}
+      </p>
+
+      <p v-if="campaignError" class="mt-3 text-sm text-red-600">
+        {{ campaignError }}
+      </p>
+
+      <div class="mt-10">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">
+          Existing Campaigns
+        </h3>
+
+        <div
+          v-if="loadingCampaigns"
+          class="text-gray-500"
+        >
+          Loading campaigns...
+        </div>
+
+        <div
+          v-else-if="campaigns.length === 0"
+          class="text-gray-500"
+        >
+          No campaigns found.
+        </div>
+
+        <div v-else class="space-y-4">
+          <div
+            v-for="campaign in campaigns"
+            :key="campaign._id"
+            class="rounded-2xl border border-gray-200 p-5"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-bold text-gray-900">
+                  {{ campaign.name }}
+                </p>
+
+                <p class="text-sm text-gray-600 mt-1">
+                  {{ campaign.discountPercentage }}% discount
+                </p>
+
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ formatCampaignDate(campaign.startDate) }}
+                  →
+                  {{ formatCampaignDate(campaign.endDate) }}
+                </p>
+              </div>
+
+              <button
+                v-if="campaign.isActive"
+                @click="handleDeactivateCampaign(campaign._id)"
+                class="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+              >
+                Deactivate
+              </button>
+
+              <span
+                v-else
+                class="text-sm font-semibold text-gray-400"
+              >
+                Inactive
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { getProducts, updateProduct } from '../../api/productApi'
+import {
+  getCampaigns,
+  createCampaign,
+  deactivateCampaign,
+} from '../../api/discountCampaignApi'
 
 const products = ref([])
 const loading = ref(true)
@@ -91,6 +258,21 @@ const priceInputs = reactive({})
 const saving = reactive({})
 const success = reactive({})
 const errors = reactive({})
+const campaigns = ref([])
+
+const loadingCampaigns = ref(false)
+const creatingCampaign = ref(false)
+
+const campaignSuccess = ref('')
+const campaignError = ref('')
+
+const campaignForm = ref({
+  name: '',
+  productIds: [],
+  discountPercentage: 10,
+  startDate: '',
+  endDate: '',
+})
 
 const filteredProducts = computed(() => {
   const term = searchTerm.value.toLowerCase()
@@ -145,6 +327,71 @@ const updatePrice = async (product) => {
     saving[product.productId] = false
   }
 }
+const loadCampaigns = async () => {
+  loadingCampaigns.value = true
 
-onMounted(loadProducts)
+  try {
+    const res = await getCampaigns()
+    campaigns.value = res.data
+  } catch (err) {
+    console.error(err)
+  } finally {
+    loadingCampaigns.value = false
+  }
+}
+
+const resetCampaignForm = () => {
+  campaignForm.value = {
+    name: '',
+    productIds: [],
+    discountPercentage: 10,
+    startDate: '',
+    endDate: '',
+  }
+}
+
+const handleCreateCampaign = async () => {
+  creatingCampaign.value = true
+
+  campaignSuccess.value = ''
+  campaignError.value = ''
+
+  try {
+    await createCampaign(campaignForm.value)
+
+    campaignSuccess.value =
+      'Discount campaign created successfully'
+
+    resetCampaignForm()
+
+    await loadCampaigns()
+  } catch (err) {
+    campaignError.value =
+      err?.response?.data?.message ||
+      'Failed to create campaign'
+  } finally {
+    creatingCampaign.value = false
+  }
+}
+
+const handleDeactivateCampaign = async (id) => {
+  try {
+    await deactivateCampaign(id)
+
+    await loadCampaigns()
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const formatCampaignDate = (date) => {
+  return new Date(date).toLocaleDateString()
+}
+
+onMounted(async () => {
+  await Promise.all([
+    loadProducts(),
+    loadCampaigns(),
+  ])
+})
 </script>

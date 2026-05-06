@@ -27,9 +27,11 @@
         >
           <h2 class="text-xl font-semibold text-slate-900">{{ item.name }}</h2>
           <p class="mt-1 text-slate-500">Product ID: {{ item.productId }}</p>
-          <p class="mt-3 text-lg font-semibold text-green-700">
-            ${{ item.unitPrice.toLocaleString() }}
-          </p>
+          <div class="mt-3">
+            <p class="text-lg font-semibold text-green-700">
+              ${{ item.unitPrice.toLocaleString() }}
+            </p>
+          </div>
           <p class="mt-1 text-sm text-slate-500">
             Quantity: {{ item.quantity }}
           </p>

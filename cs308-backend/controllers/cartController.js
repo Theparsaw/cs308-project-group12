@@ -2,6 +2,7 @@ const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
+const { getDiscountedPrice } = require("../utils/discount");
 const { processPayment } = require("../utils/paymentGateway");
 
 const calculateTotalPrice = (items) =>
@@ -106,18 +107,33 @@ const addItemToCart = asyncHandler(async (req, res) => {
   }
 
   if (existingItem) {
-      existingItem.quantity = nextQuantity;
-      existingItem.unitPrice = product.price;
-      existingItem.name = formatProductName(product);
-      existingItem.imageUrl = product.imageUrl || "";
-    } else {
-      cart.items.push({
-        productId: product.productId,
-        name: formatProductName(product),
-        imageUrl: product.imageUrl || "",
-        unitPrice: product.price,
-        quantity,
-      });
+    existingItem.quantity = nextQuantity;
+
+    const pricing = await getDiscountedPrice(product);
+
+    existingItem.unitPrice = pricing.discountedPrice;
+    existingItem.originalPrice = pricing.originalPrice;
+    existingItem.discountPercentage = pricing.discountPercentage;
+    existingItem.campaignName = pricing.campaignName;
+    existingItem.hasDiscount = pricing.hasDiscount;
+    existingItem.name = formatProductName(product);
+    existingItem.imageUrl = product.imageUrl || "";
+  } else {
+    const pricing = await getDiscountedPrice(product);
+
+    cart.items.push({
+      productId: product.productId,
+      name: formatProductName(product),
+      imageUrl: product.imageUrl || "",
+
+      unitPrice: pricing.discountedPrice,
+      originalPrice: pricing.originalPrice,
+      discountPercentage: pricing.discountPercentage,
+      campaignName: pricing.campaignName,
+      hasDiscount: pricing.hasDiscount,
+
+      quantity,
+    });
   }
 
   cart.totalPrice = calculateTotalPrice(cart.items);
@@ -168,7 +184,14 @@ const updateCartItemQuantity = asyncHandler(async (req, res) => {
   }
 
   item.quantity = quantity;
-  item.unitPrice = product.price;
+
+  const pricing = await getDiscountedPrice(product);
+
+  item.unitPrice = pricing.discountedPrice;
+  item.originalPrice = pricing.originalPrice;
+  item.discountPercentage = pricing.discountPercentage;
+  item.campaignName = pricing.campaignName;
+  item.hasDiscount = pricing.hasDiscount;
   item.name = formatProductName(product);
   item.imageUrl = product.imageUrl || "";
   cart.totalPrice = calculateTotalPrice(cart.items);

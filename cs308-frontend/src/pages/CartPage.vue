@@ -53,9 +53,31 @@
 
               <div>
               <h2 class="text-xl font-semibold text-slate-900">{{ item.name }}</h2>
-              <p class="mt-3 text-lg font-semibold text-green-700">
-                ${{ item.unitPrice.toLocaleString() }}
-              </p>
+              <div v-if="item.hasDiscount">
+                <p class="text-sm text-gray-400 line-through">
+                  ${{ Number(item.originalPrice).toLocaleString() }}
+                </p>
+
+                <div class="flex items-center gap-2">
+                  <p class="text-lg font-bold text-red-600">
+                    ${{ Number(item.unitPrice).toLocaleString() }}
+                  </p>
+
+                  <span class="text-xs font-semibold text-red-600">
+                    -{{ item.discountPercentage }}%
+                  </span>
+                </div>
+
+                <p class="text-xs text-green-600">
+                  {{ item.campaignName }}
+                </p>
+              </div>
+
+              <div v-else>
+                <p class="text-lg font-bold text-slate-900">
+                  ${{ Number(item.unitPrice).toLocaleString() }}
+                </p>
+              </div>
               <p class="mt-1 text-sm text-slate-500">
                 Subtotal: ${{ (item.unitPrice * item.quantity).toLocaleString() }}
               </p>
