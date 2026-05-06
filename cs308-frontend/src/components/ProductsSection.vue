@@ -59,9 +59,29 @@
           </p>
 
           <div class="mt-4">
-            <p class="text-lg font-bold text-orange-600">
-              ${{ Number(product.price).toLocaleString() }}
-            </p>
+            <div v-if="product.hasDiscount">
+              <p class="text-sm text-gray-400 line-through">
+                ${{ Number(product.originalPrice).toLocaleString() }}
+              </p>
+
+              <div class="flex items-center gap-2">
+                <p class="text-lg font-bold text-red-600">
+                  ${{ Number(product.discountedPrice).toLocaleString() }}
+                </p>
+
+                <span
+                  class="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700"
+                >
+                  -{{ product.discountPercentage }}%
+                </span>
+              </div>
+            </div>
+
+            <div v-else>
+              <p class="text-lg font-bold text-orange-600">
+                ${{ Number(product.price).toLocaleString() }}
+              </p>
+            </div>
             <p class="text-xs text-gray-500">
               Stock: {{ product.quantityInStock ?? 'N/A' }}
             </p>

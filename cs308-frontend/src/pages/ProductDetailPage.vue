@@ -36,7 +36,33 @@
           <div class="mb-3 flex items-start justify-between gap-4">
             <div>
               <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.model }}</h1>
-              <p class="text-2xl text-green-600 font-bold mb-2">${{ product.price?.toLocaleString() }}</p>
+              <div v-if="product.hasDiscount">
+                <p class="text-sm text-gray-400 line-through">
+                  ${{ Number(product.originalPrice).toLocaleString() }}
+                </p>
+
+                <div class="flex items-center gap-2">
+                  <p class="text-3xl font-bold text-red-600">
+                    ${{ Number(product.discountedPrice).toLocaleString() }}
+                  </p>
+
+                  <span
+                    class="rounded bg-red-100 px-2 py-1 text-sm font-semibold text-red-700"
+                  >
+                    -{{ product.discountPercentage }}%
+                  </span>
+                </div>
+
+                <p class="mt-1 text-sm text-green-600 font-medium">
+                  {{ product.campaignName }}
+                </p>
+              </div>
+
+              <div v-else>
+                <p class="text-3xl font-bold text-green-600">
+                  ${{ Number(product.price).toLocaleString() }}
+                </p>
+              </div>
             </div>
             <WishlistButton
               v-if="product.productId"
