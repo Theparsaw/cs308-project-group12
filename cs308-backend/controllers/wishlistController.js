@@ -1,23 +1,45 @@
 const Wishlist = require("../models/Wishlist");
 const Product = require("../models/Product");
+const DiscountCampaign = require("../models/DiscountCampaign");
+const Notification = require("../models/Notification");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
 
-const sanitizeProduct = (product) => ({
-  id: product._id,
-  productId: product.productId,
-  categoryId: product.categoryId,
-  name: product.name,
-  model: product.model,
-  description: product.description,
-  quantityInStock: product.quantityInStock,
-  price: product.price,
-  warrantyStatus: product.warrantyStatus,
-  distributorInfo: product.distributorInfo,
-  imageUrl: product.imageUrl || "",
-  createdAt: product.createdAt,
-  updatedAt: product.updatedAt,
-});
+const sanitizeProduct = (product) => {
+
+  const now = new Date();
+
+  return {
+    id: product._id,
+    productId: product.productId,
+    categoryId: product.categoryId,
+    name: product.name,
+    model: product.model,
+    description: product.description,
+    quantityInStock: product.quantityInStock,
+    price: product.price,
+    warrantyStatus: product.warrantyStatus,
+    distributorInfo: product.distributorInfo,
+    imageUrl: product.imageUrl || "",
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+
+    hasDiscount:
+      !!product.discountPercentage,
+
+    discountPercentage:
+      product.discountPercentage || 0,
+
+    originalPrice:
+      product.originalPrice || product.price,
+
+    discountedPrice:
+      product.discountedPrice || product.price,
+
+    activeCampaignName:
+      product.activeCampaignName || null,
+  };
+};
 
 const serializeWishlist = (wishlist, productsById = {}) => ({
   id: wishlist._id,
@@ -49,6 +71,7 @@ const getEmptyWishlistPayload = (userId) => ({
 });
 
 const getProductsById = async (productIds) => {
+
   if (!productIds.length) {
     return {};
   }
@@ -57,10 +80,53 @@ const getProductsById = async (productIds) => {
     productId: { $in: productIds },
   }).lean();
 
-  return products.reduce((acc, product) => {
-    acc[product.productId] = product;
-    return acc;
-  }, {});
+  const campaigns =
+    await DiscountCampaign.find({
+      isActive: true,
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() },
+    });
+
+  const productsById = {};
+
+  for (const product of products) {
+
+    const activeCampaign =
+      campaigns.find((campaign) =>
+        campaign.productIds.includes(
+          product.productId
+        )
+      );
+
+    if (activeCampaign) {
+
+      const discountedPrice =
+        product.price *
+        (
+          1 -
+          activeCampaign.discountPercentage / 100
+        );
+
+      product.hasDiscount = true;
+
+      product.discountPercentage =
+        activeCampaign.discountPercentage;
+
+      product.originalPrice =
+        product.price;
+
+      product.discountedPrice =
+        Number(discountedPrice.toFixed(2));
+
+      product.activeCampaignName =
+        activeCampaign.name;
+    }
+
+    productsById[product.productId] =
+      product;
+  }
+
+  return productsById;
 };
 
 const syncUnavailableWishlistItems = async (wishlist) => {
@@ -71,6 +137,49 @@ const syncUnavailableWishlistItems = async (wishlist) => {
   if (availableProductIds.length !== productIds.length) {
     wishlist.removeUnavailableProductReferences(availableProductIds);
     await wishlist.save();
+    const activeCampaign =
+      await DiscountCampaign.findOne({
+        productIds: normalizedProductId,
+        isActive: true,
+        startDate: { $lte: new Date() },
+        endDate: { $gte: new Date() },
+      });
+
+    if (activeCampaign) {
+
+      await Notification.findOneAndUpdate(
+        {
+          userId: String(req.user.id),
+          productId: normalizedProductId,
+          campaignId: String(activeCampaign._id),
+        },
+        {
+          userId: String(req.user.id),
+
+          productId: normalizedProductId,
+
+          campaignId: String(activeCampaign._id),
+
+          productName:
+            product?.model ||
+            product?.name ||
+            "Product",
+
+          discountPercentage:
+            activeCampaign.discountPercentage,
+
+          message:
+            `${product?.model || "A wishlisted product"} is now ${activeCampaign.discountPercentage}% off.`,
+
+          isRead: false,
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+    }
   }
 
   return productsById;

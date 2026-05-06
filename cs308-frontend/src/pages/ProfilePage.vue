@@ -742,12 +742,45 @@
               </p>
 
               <div class="mt-4">
-                <p class="text-lg font-bold text-orange-600">
-                  ${{ Number(item.product.price).toLocaleString() }}
-                </p>
+
+                <div v-if="item.product.hasDiscount">
+
+                  <p class="text-sm text-red-500 line-through">
+                    ${{ Number(item.product.originalPrice).toLocaleString() }}
+                  </p>
+
+                  <div class="flex items-center gap-2">
+
+                    <p class="text-lg font-bold text-green-600">
+                      ${{ Number(item.product.discountedPrice).toLocaleString() }}
+                    </p>
+
+                    <span
+                      class="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700"
+                    >
+                      -{{ item.product.discountPercentage }}%
+                    </span>
+
+                  </div>
+
+                  <p class="text-xs text-orange-600 mt-1">
+                    {{ item.product.activeCampaignName }}
+                  </p>
+
+                </div>
+
+                <div v-else>
+
+                  <p class="text-lg font-bold text-orange-600">
+                    ${{ Number(item.product.price).toLocaleString() }}
+                  </p>
+
+                </div>
+
                 <p class="text-xs text-gray-500">
                   Stock: {{ item.product.quantityInStock ?? 'N/A' }}
                 </p>
+
               </div>
             </router-link>
           </article>

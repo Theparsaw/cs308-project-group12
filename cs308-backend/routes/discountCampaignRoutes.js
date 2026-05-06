@@ -7,6 +7,8 @@ const {
   getCampaigns,
   updateCampaign,
   deactivateCampaign,
+  reactivateCampaign,
+  deleteCampaign,
 } = require("../controllers/discountCampaignController");
 
 const {
@@ -26,5 +28,11 @@ router.route("/:id")
 
 router.route("/:id/deactivate")
   .patch(deactivateCampaign);
+
+router.route("/:id/reactivate")
+  .patch(reactivateCampaign);
+
+router.route("/:id")
+  .delete(deleteCampaign);
 
 module.exports = router;

@@ -1,9 +1,10 @@
-const DiscountCampaign = require("../models/DiscountCampaign");
 const Product = require("../models/Product");
 const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
 const Wishlist = require("../models/Wishlist");
-const Notification = require("../models/Notification");
+const Notification = require("../models/Notification")
+const DiscountCampaign = require("../models/DiscountCampaign");
+
 
 
 // CREATE CAMPAIGN
@@ -105,7 +106,10 @@ const getCampaigns = asyncHandler(async (_req, res) => {
 
 // UPDATE CAMPAIGN
 const updateCampaign = asyncHandler(async (req, res) => {
-  const campaign = await DiscountCampaign.findById(req.params.id);
+
+  const campaign = await DiscountCampaign.findById(
+    req.params.id
+  );
 
   if (!campaign) {
     throw new AppError(
@@ -121,24 +125,68 @@ const updateCampaign = asyncHandler(async (req, res) => {
     discountPercentage,
     startDate,
     endDate,
-    isActive,
   } = req.body;
 
-  if (name !== undefined) campaign.name = name;
-  if (productIds !== undefined) campaign.productIds = productIds;
-  if (discountPercentage !== undefined) {
-    campaign.discountPercentage = discountPercentage;
-  }
-  if (startDate !== undefined) campaign.startDate = startDate;
-  if (endDate !== undefined) campaign.endDate = endDate;
-  if (isActive !== undefined) campaign.isActive = isActive;
+  campaign.name = name;
+
+  campaign.discountPercentage =
+    discountPercentage;
+
+  campaign.startDate = startDate;
+
+  campaign.endDate = endDate;
+
+  campaign.productIds = productIds;
 
   await campaign.save();
+  for (const productId of productIds) {
 
-  res.status(200).json({
-    message: "Campaign updated successfully",
-    campaign,
-  });
+    const product = await Product.findOne({
+      productId,
+    });
+
+    const wishlists = await Wishlist.find({
+      "items.productId": productId,
+    });
+
+    for (const wishlist of wishlists) {
+
+      await Notification.findOneAndUpdate(
+        {
+          userId: String(wishlist.userId),
+          productId,
+          campaignId: String(campaign._id),
+        },
+        {
+          userId: String(wishlist.userId),
+
+          productId,
+
+          campaignId: String(campaign._id),
+
+          productName:
+            product?.model ||
+            product?.name ||
+            "Product",
+
+          discountPercentage:
+            campaign.discountPercentage,
+
+          message:
+            `${product?.model || "A wishlisted product"} is now ${campaign.discountPercentage}% off.`,
+
+          isRead: false,
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+    }
+  }
+
+  return res.status(200).json(campaign);
 });
 
 // DEACTIVATE
@@ -162,9 +210,60 @@ const deactivateCampaign = asyncHandler(async (req, res) => {
   });
 });
 
+const reactivateCampaign = asyncHandler(async (req, res) => {
+
+  const campaign =
+    await DiscountCampaign.findById(
+      req.params.id
+    );
+
+  if (!campaign) {
+    throw new AppError(
+      "Campaign not found",
+      404,
+      "CAMPAIGN_NOT_FOUND"
+    );
+  }
+
+  campaign.isActive = true;
+
+  await campaign.save();
+
+  return res.status(200).json({
+    message: "Campaign reactivated",
+    campaign,
+  });
+});
+
+
+const deleteCampaign = asyncHandler(async (req, res) => {
+
+  const campaign =
+    await DiscountCampaign.findById(
+      req.params.id
+    );
+
+  if (!campaign) {
+    throw new AppError(
+      "Campaign not found",
+      404,
+      "CAMPAIGN_NOT_FOUND"
+    );
+  }
+
+  await campaign.deleteOne();
+
+  return res.status(200).json({
+    message: "Campaign deleted",
+  });
+});
+
+
 module.exports = {
-  createCampaign,
   getCampaigns,
+  createCampaign,
   updateCampaign,
   deactivateCampaign,
+  reactivateCampaign,
+  deleteCampaign,
 };
