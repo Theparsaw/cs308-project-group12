@@ -17,10 +17,15 @@
       </router-link>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-6">
       <div class="rounded-3xl border border-gray-200 bg-white p-5">
         <p class="text-sm text-gray-500 mb-2">Total Products</p>
         <p class="text-3xl font-bold text-gray-900">{{ products.length }}</p>
+      </div>
+
+      <div class="rounded-3xl border border-gray-200 bg-white p-5">
+        <p class="text-sm text-gray-500 mb-2">Total Purchases</p>
+        <p class="text-3xl font-bold text-gray-900">{{ totalPurchases.toLocaleString() }}</p>
       </div>
 
       <div class="rounded-3xl border border-gray-200 bg-white p-5">
@@ -83,21 +88,58 @@
 
     <div v-else class="rounded-3xl border border-gray-200 bg-white overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[980px]">
+        <table class="w-full min-w-[1080px]">
           <thead class="bg-gray-50">
             <tr class="text-left text-sm text-gray-600">
               <th class="px-6 py-4 font-semibold">Product</th>
-              <th class="px-6 py-4 font-semibold">Product ID</th>
-              <th class="px-6 py-4 font-semibold">Price</th>
-              <th class="px-6 py-4 font-semibold">Stock</th>
-              <th class="px-6 py-4 font-semibold">Status</th>
-              <th class="px-6 py-4 font-semibold">Actions</th>
+              <th class="px-6 py-4 font-semibold">
+                <button
+                  type="button"
+                  @click="setSort('productId')"
+                  class="inline-flex items-center gap-2 text-left font-semibold text-gray-600 transition hover:text-orange-600"
+                >
+                  Product ID
+                  <span class="w-3 text-xs text-gray-400">{{ getSortIndicator('productId') }}</span>
+                </button>
+              </th>
+              <th class="px-6 py-4 font-semibold">
+                <button
+                  type="button"
+                  @click="setSort('price')"
+                  class="inline-flex items-center gap-2 text-left font-semibold text-gray-600 transition hover:text-orange-600"
+                >
+                  Price
+                  <span class="w-3 text-xs text-gray-400">{{ getSortIndicator('price') }}</span>
+                </button>
+              </th>
+              <th class="px-6 py-4 font-semibold">
+                <button
+                  type="button"
+                  @click="setSort('stock')"
+                  class="inline-flex items-center gap-2 text-left font-semibold text-gray-600 transition hover:text-orange-600"
+                >
+                  Stock
+                  <span class="w-3 text-xs text-gray-400">{{ getSortIndicator('stock') }}</span>
+                </button>
+              </th>
+              <th class="px-6 py-4 font-semibold">
+                <button
+                  type="button"
+                  @click="setSort('purchases')"
+                  class="inline-flex items-center gap-2 text-left font-semibold text-gray-600 transition hover:text-orange-600"
+                >
+                  Purchases
+                  <span class="w-3 text-xs text-gray-400">{{ getSortIndicator('purchases') }}</span>
+                </button>
+              </th>
+              <th class="w-36 px-4 py-4 font-semibold">Status</th>
+              <th class="w-36 px-4 py-4 font-semibold">Actions</th>
             </tr>
           </thead>
 
           <tbody>
             <tr
-              v-for="product in filteredProducts"
+              v-for="product in sortedProducts"
               :key="product.productId"
               class="border-t border-gray-100 hover:bg-gray-50/70"
             >
@@ -140,16 +182,20 @@
                 {{ product.quantityInStock }}
               </td>
 
-              <td class="px-6 py-4">
+              <td class="px-6 py-4 font-semibold text-gray-900">
+                {{ getPurchaseCount(product).toLocaleString() }}
+              </td>
+
+              <td class="w-36 px-4 py-4">
                 <span
-                  class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  class="inline-flex min-w-[92px] justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold"
                   :class="getStockBadgeClass(product.quantityInStock)"
                 >
                   {{ getStockLabel(product.quantityInStock) }}
                 </span>
               </td>
 
-              <td class="px-6 py-4">
+              <td class="w-36 px-4 py-4">
                 <div class="flex flex-wrap gap-2">
                   <router-link
                     :to="`/admin/products/edit/${product.productId}`"
@@ -234,6 +280,8 @@ const successMessage = ref('')
 const searchTerm = ref('')
 const stockFilter = ref('all')
 const productToDelete = ref(null)
+const sortKey = ref('productId')
+const sortDirection = ref('asc')
 
 const filterOptions = [
   { label: 'All', value: 'all' },
@@ -270,6 +318,19 @@ const outOfStockCount = computed(() =>
   products.value.filter((p) => Number(p.quantityInStock) === 0).length
 )
 
+const getPurchaseCount = (product) => Number(product?.popularity) || 0
+
+const totalPurchases = computed(() =>
+  products.value.reduce((total, product) => total + getPurchaseCount(product), 0)
+)
+
+const getSortValue = (product, key) => {
+  if (key === 'price') return Number(product.price) || 0
+  if (key === 'stock') return Number(product.quantityInStock) || 0
+  if (key === 'purchases') return getPurchaseCount(product)
+  return String(product.productId ?? '').toLowerCase()
+}
+
 const filteredProducts = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
 
@@ -291,6 +352,46 @@ const filteredProducts = computed(() => {
     return matchesSearch && matchesFilter
   })
 })
+
+const sortedProducts = computed(() => {
+  const direction = sortDirection.value === 'asc' ? 1 : -1
+
+  return [...filteredProducts.value].sort((left, right) => {
+    const leftValue = getSortValue(left, sortKey.value)
+    const rightValue = getSortValue(right, sortKey.value)
+
+    if (typeof leftValue === 'string' || typeof rightValue === 'string') {
+      return String(leftValue).localeCompare(String(rightValue), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      }) * direction
+    }
+
+    if (leftValue !== rightValue) {
+      return (leftValue - rightValue) * direction
+    }
+
+    return String(left.productId ?? '').localeCompare(String(right.productId ?? ''), undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    })
+  })
+})
+
+const setSort = (key) => {
+  if (sortKey.value === key) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+    return
+  }
+
+  sortKey.value = key
+  sortDirection.value = key === 'productId' ? 'asc' : 'desc'
+}
+
+const getSortIndicator = (key) => {
+  if (sortKey.value !== key) return '↑↓'
+  return sortDirection.value === 'asc' ? '↑' : '↓'
+}
 
 const getStockLabel = (stock) => {
   const numericStock = Number(stock) || 0
