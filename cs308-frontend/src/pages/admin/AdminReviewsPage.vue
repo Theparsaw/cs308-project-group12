@@ -90,7 +90,7 @@
               </div>
 
               <p class="text-sm text-gray-700 leading-6">
-                {{ review.comment || 'No comment provided.' }}
+                {{ getModerationComment(review) || 'No comment provided.' }}
               </p>
             </div>
           </div>
@@ -158,10 +158,16 @@ const filteredReviews = computed(() => {
     return (
       String(review.productId ?? '').toLowerCase().includes(term) ||
       String(review.comment ?? '').toLowerCase().includes(term) ||
+      String(review.pendingComment ?? '').toLowerCase().includes(term) ||
       String(product?.name ?? '').toLowerCase().includes(term)
     )
   })
 })
+
+const getModerationComment = (review) =>
+  review.commentStatus === 'pending' && review.pendingComment
+    ? review.pendingComment
+    : review.comment
 
 const loadModerationData = async () => {
   loading.value = true

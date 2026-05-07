@@ -23,17 +23,6 @@ const normalizeComment = (comment) => String(comment ?? "").trim();
 const getReviewStatusForComment = (comment) =>
   normalizeComment(comment) ? "pending" : "approved";
 
-const getReviewStatusForUpdate = (review, nextComment) => {
-  const normalizedNextComment = normalizeComment(nextComment);
-
-  if (!normalizedNextComment) return "approved";
-  if (normalizedNextComment === normalizeComment(review.comment)) {
-    return review.status;
-  }
-
-  return "pending";
-};
-
 const hasCancelledOrderForProduct = (userId, productId) =>
   Order.exists({
     userId: String(userId).trim(),
@@ -323,6 +312,7 @@ const createReview = asyncHandler(async (req, res) => {
     rating: ratingNumber,
     comment: normalizedComment,
     status: getReviewStatusForComment(normalizedComment),
+    commentStatus: normalizedComment ? "pending" : "none",
   });
 
   return res.status(201).json({
@@ -371,13 +361,43 @@ const updateReview = asyncHandler(async (req, res) => {
     throw new AppError("You can only edit your own review", 403, "FORBIDDEN");
   }
 
+  const previousApprovedComment = normalizeComment(review.comment);
+  const isExistingPublicReview = review.status === "approved";
+  const isCommentChanged = normalizedComment !== previousApprovedComment;
+
   review.rating = Number(rating);
-  review.status = getReviewStatusForUpdate(review, normalizedComment);
-  review.comment = normalizedComment;
+
+  if (!normalizedComment) {
+    review.comment = "";
+    review.pendingComment = "";
+    review.commentStatus = "none";
+    review.status = "approved";
+  } else if (isExistingPublicReview && isCommentChanged) {
+    review.pendingComment = normalizedComment;
+    review.commentStatus = "pending";
+  } else if (isExistingPublicReview) {
+    review.comment = normalizedComment;
+    review.status = "approved";
+
+    if (review.commentStatus !== "pending") {
+      review.pendingComment = "";
+      review.commentStatus = "approved";
+    }
+  } else {
+    review.comment = normalizedComment;
+    review.pendingComment = "";
+    review.commentStatus = normalizedComment
+      ? review.commentStatus || "approved"
+      : "none";
+    review.status = getReviewStatusForComment(normalizedComment);
+  }
+
   await review.save();
 
+  const hasPendingComment = normalizeComment(review.pendingComment);
+
   return res.status(200).json({
-    message: review.status === "pending"
+    message: review.status === "pending" || hasPendingComment
       ? "Review update submitted for approval."
       : "Rating updated successfully.",
     review,

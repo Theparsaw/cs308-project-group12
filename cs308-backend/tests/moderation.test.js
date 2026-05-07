@@ -130,6 +130,57 @@ describe("Moderation API", () => {
     await ModerationLog.deleteMany({ reviewId: String(review._id) });
   });
 
+  test("approving a pending comment edit keeps the approved rating and publishes the comment", async () => {
+    const review = await Review.create({
+      userId: testUserId,
+      productId: "p004",
+      rating: 2,
+      comment: "",
+      pendingComment: "Comment added after the rating was already public.",
+      commentStatus: "pending",
+      status: "approved",
+    });
+
+    const res = await request(app)
+      .patch(`/api/moderation/reviews/${review._id}/approve`)
+      .set("Authorization", `Bearer ${productManagerToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.rating).toBe(2);
+    expect(res.body.data.status).toBe("approved");
+    expect(res.body.data.comment).toBe("Comment added after the rating was already public.");
+    expect(res.body.data.pendingComment).toBe("");
+
+    await Review.findByIdAndDelete(review._id);
+    await ModerationLog.deleteMany({ reviewId: String(review._id) });
+  });
+
+  test("rejecting a pending comment edit keeps the approved rating public", async () => {
+    const review = await Review.create({
+      userId: testUserId,
+      productId: "p005",
+      rating: 5,
+      comment: "",
+      pendingComment: "Comment that should not be published after rejection.",
+      commentStatus: "pending",
+      status: "approved",
+    });
+
+    const res = await request(app)
+      .patch(`/api/moderation/reviews/${review._id}/reject`)
+      .set("Authorization", `Bearer ${productManagerToken}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.rating).toBe(5);
+    expect(res.body.data.status).toBe("approved");
+    expect(res.body.data.comment).toBe("");
+    expect(res.body.data.pendingComment).toBe("");
+    expect(res.body.data.commentStatus).toBe("rejected");
+
+    await Review.findByIdAndDelete(review._id);
+    await ModerationLog.deleteMany({ reviewId: String(review._id) });
+  });
+
   test("Approving a non-existent review returns 404", async () => {
     const fakeId = new mongoose.Types.ObjectId();
     const res = await request(app)

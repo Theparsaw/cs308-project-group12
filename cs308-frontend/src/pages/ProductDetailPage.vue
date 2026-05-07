@@ -159,6 +159,14 @@
         </div>
       </section>
 
+      <div
+        v-if="reviewMessage"
+        :class="reviewMessageTone === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-700 border-green-200'"
+        class="rounded-lg border p-3 text-sm"
+      >
+        {{ reviewMessage }}
+      </div>
+
       <section v-if="!ownApprovedReview || isEditingReview" class="bg-white border rounded-xl p-8 shadow-sm">
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
@@ -178,14 +186,6 @@
           >
             Go to Login
           </button>
-        </div>
-
-        <div
-          v-if="reviewMessage"
-          :class="reviewMessageTone === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-700 border-green-200'"
-          class="mb-4 rounded-lg border p-3 text-sm"
-        >
-          {{ reviewMessage }}
         </div>
 
         <form class="space-y-4" @submit.prevent="handleReviewSubmit">

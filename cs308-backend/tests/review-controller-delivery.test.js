@@ -239,6 +239,7 @@ describe("createReview delivery requirement", () => {
       rating: 5,
       comment: "This product arrived in excellent condition.",
       status: "pending",
+      commentStatus: "pending",
     });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
@@ -319,6 +320,7 @@ describe("createReview delivery requirement", () => {
       rating: 5,
       comment: "This product arrived in excellent condition.",
       status: "pending",
+      commentStatus: "pending",
     });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(next).not.toHaveBeenCalled();
@@ -361,6 +363,7 @@ describe("createReview delivery requirement", () => {
       rating: 4,
       comment: "",
       status: "approved",
+      commentStatus: "none",
     });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
@@ -383,7 +386,9 @@ describe("updateReview", () => {
       userId: "user-1",
       productId: "p001",
       rating: 3,
-      comment: "Original review comment.",
+      comment: "",
+      pendingComment: "",
+      commentStatus: "none",
       status: "approved",
       save: jest.fn().mockResolvedValue(true),
     };
@@ -404,8 +409,10 @@ describe("updateReview", () => {
     await updateReview(req, res, next);
 
     expect(review.rating).toBe(5);
-    expect(review.comment).toBe("Updated review comment.");
-    expect(review.status).toBe("pending");
+    expect(review.comment).toBe("");
+    expect(review.pendingComment).toBe("Updated review comment.");
+    expect(review.commentStatus).toBe("pending");
+    expect(review.status).toBe("approved");
     expect(review.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -423,6 +430,8 @@ describe("updateReview", () => {
       productId: "p001",
       rating: 3,
       comment: "Original review comment.",
+      pendingComment: "",
+      commentStatus: "approved",
       status: "approved",
       save: jest.fn().mockResolvedValue(true),
     };
@@ -444,6 +453,8 @@ describe("updateReview", () => {
 
     expect(review.rating).toBe(4);
     expect(review.comment).toBe("");
+    expect(review.pendingComment).toBe("");
+    expect(review.commentStatus).toBe("none");
     expect(review.status).toBe("approved");
     expect(review.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
@@ -462,6 +473,8 @@ describe("updateReview", () => {
       productId: "p001",
       rating: 3,
       comment: "Original review comment.",
+      pendingComment: "",
+      commentStatus: "approved",
       status: "approved",
       save: jest.fn().mockResolvedValue(true),
     };
@@ -483,11 +496,55 @@ describe("updateReview", () => {
 
     expect(review.rating).toBe(5);
     expect(review.comment).toBe("Original review comment.");
+    expect(review.pendingComment).toBe("");
     expect(review.status).toBe("approved");
     expect(review.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       message: "Rating updated successfully.",
+      review,
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test("keeps the old approved comment public while an edited comment waits for approval", async () => {
+    const reviewId = new mongoose.Types.ObjectId().toString();
+    const review = {
+      _id: reviewId,
+      userId: "user-1",
+      productId: "p001",
+      rating: 3,
+      comment: "Original review comment.",
+      pendingComment: "",
+      commentStatus: "approved",
+      status: "approved",
+      save: jest.fn().mockResolvedValue(true),
+    };
+
+    Review.findById.mockResolvedValue(review);
+
+    const req = {
+      user: { id: "user-1" },
+      params: { id: reviewId },
+      body: {
+        rating: 5,
+        comment: "Updated review comment.",
+      },
+    };
+    const res = createRes();
+    const next = jest.fn();
+
+    await updateReview(req, res, next);
+
+    expect(review.rating).toBe(5);
+    expect(review.comment).toBe("Original review comment.");
+    expect(review.pendingComment).toBe("Updated review comment.");
+    expect(review.commentStatus).toBe("pending");
+    expect(review.status).toBe("approved");
+    expect(review.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Review update submitted for approval.",
       review,
     });
     expect(next).not.toHaveBeenCalled();
