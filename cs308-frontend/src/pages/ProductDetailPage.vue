@@ -90,16 +90,16 @@
               <div class="flex items-center border rounded-lg">
                 <button @click="decreaseQuantity" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg" :disabled="quantity <= 1">-</button>
                 <span class="px-4 py-2 border-x min-w-[3rem] text-center">{{ quantity }}</span>
-                <button @click="increaseQuantity" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg" :disabled="quantity >= product.quantityInStock">+</button>
+                <button @click="increaseQuantity" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg" :disabled="quantity >= availableStock">+</button>
               </div>
               
               <button 
                 @click="handleAddToCart"
                 class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                :disabled="product.quantityInStock === 0 || addingToCart"
+                :disabled="isOutOfStock || addingToCart"
               >
                 <span v-if="addingToCart">Adding...</span>
-                <span v-else-if="product.quantityInStock === 0">Out of Stock</span>
+                <span v-else-if="isOutOfStock">Out of Stock</span>
                 <span v-else>Add to Cart</span>
               </button>
             </div>
@@ -316,6 +316,11 @@ const currentUserId = computed(() =>
   String(authStore.user?.id || authStore.user?._id || getUserIdFromToken())
 )
 const isEditingReview = computed(() => Boolean(editingReviewId.value))
+const availableStock = computed(() => {
+  const stock = Number(product.value?.quantityInStock)
+  return Number.isFinite(stock) ? Math.max(0, stock) : 0
+})
+const isOutOfStock = computed(() => availableStock.value <= 0)
 
 const goBack = () => {
   router.push('/products')
@@ -330,7 +335,7 @@ const decreaseQuantity = () => {
 }
 
 const increaseQuantity = () => {
-  if (quantity.value < product.value.quantityInStock) quantity.value++
+  if (quantity.value < availableStock.value) quantity.value++
 }
 
 const resetReviewErrors = () => {
@@ -446,8 +451,15 @@ const focusReviewFormFromRoute = async () => {
 }
 
 const handleAddToCart = async () => {
-  addingToCart.value = true
   cartMessage.value = ''
+
+  if (isOutOfStock.value) {
+    cartMessage.value = 'Product is out of stock'
+    cartMessageTone.value = 'error'
+    return
+  }
+
+  addingToCart.value = true
 
   try {
     const res = authStore.isLoggedIn
