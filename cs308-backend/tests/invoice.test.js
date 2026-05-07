@@ -5,10 +5,12 @@ jest.mock("../models/Invoice", () => ({
 
 jest.mock("../models/Order", () => ({
   findOne: jest.fn(),
+  find: jest.fn(),
 }));
 
 jest.mock("../models/User", () => ({
   findById: jest.fn(),
+  find: jest.fn(),
 }));
 
 jest.mock("../utils/invoiceGenerator", () => ({
@@ -21,7 +23,10 @@ const User = require("../models/User");
 const { generateInvoicePDF } = require("../utils/invoiceGenerator");
 const {
   downloadInvoice,
+  downloadSalesInvoice,
   getMyInvoices,
+  getSalesInvoices,
+  getSalesReport,
 } = require("../controllers/invoiceController");
 
 const createRes = () => {
@@ -35,6 +40,7 @@ const createRes = () => {
 
 const createQuery = (data) => ({
   sort: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
   lean: jest.fn().mockResolvedValue(data),
 });
 
@@ -152,5 +158,173 @@ describe("invoiceController", () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ message: "Invoice not found" });
     expect(generateInvoicePDF).not.toHaveBeenCalled();
+  });
+
+  test("getSalesInvoices returns invoices in a date range with customer data", async () => {
+    const invoices = [
+      {
+        _id: "invoice-1",
+        orderId: "order-1",
+        userId: "user-1",
+        invoiceNumber: "INV-ORDER1",
+        amount: 120,
+        status: "emailed",
+        createdAt: new Date("2026-04-20T10:00:00.000Z"),
+        updatedAt: new Date("2026-04-20T10:00:00.000Z"),
+      },
+    ];
+    const users = [
+      {
+        _id: "user-1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      },
+    ];
+    const invoiceQuery = createQuery(invoices);
+    const userQuery = createQuery(users);
+    Invoice.find.mockReturnValue(invoiceQuery);
+    User.find.mockReturnValue(userQuery);
+
+    const req = {
+      query: {
+        startDate: "2026-04-01",
+        endDate: "2026-04-30",
+      },
+    };
+    const res = createRes();
+
+    await getSalesInvoices(req, res);
+
+    expect(Invoice.find).toHaveBeenCalledWith({
+      createdAt: {
+        $gte: new Date("2026-04-01"),
+        $lte: new Date("2026-04-30T23:59:59.999Z"),
+      },
+    });
+    expect(User.find).toHaveBeenCalledWith({ _id: { $in: ["user-1"] } });
+    expect(userQuery.select).toHaveBeenCalledWith("_id name email");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      invoices: [
+        expect.objectContaining({
+          id: "invoice-1",
+          customerName: "Ada Lovelace",
+          customerEmail: "ada@example.com",
+        }),
+      ],
+      summary: {
+        count: 1,
+        totalAmount: 120,
+      },
+    });
+  });
+
+  test("getSalesReport calculates revenue and discount loss for paid orders", async () => {
+    const orders = [
+      {
+        _id: "order-1",
+        status: "paid",
+        totalPrice: 180,
+        paidAt: new Date("2026-04-20T10:00:00.000Z"),
+        createdAt: new Date("2026-04-20T09:00:00.000Z"),
+        items: [
+          {
+            productId: "p001",
+            name: "Phone",
+            originalPrice: 100,
+            unitPrice: 90,
+            quantity: 2,
+          },
+        ],
+      },
+    ];
+    const orderQuery = createQuery(orders);
+    Order.find.mockReturnValue(orderQuery);
+
+    const req = {
+      query: {
+        startDate: "2026-04-01",
+        endDate: "2026-04-30",
+      },
+    };
+    const res = createRes();
+
+    await getSalesReport(req, res);
+
+    expect(Order.find).toHaveBeenCalledWith({
+      status: "paid",
+      paidAt: {
+        $gte: new Date("2026-04-01"),
+        $lte: new Date("2026-04-30T23:59:59.999Z"),
+      },
+    });
+    expect(orderQuery.sort).toHaveBeenCalledWith({ paidAt: 1, createdAt: 1 });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      summary: {
+        revenue: 180,
+        discountLoss: 20,
+        estimatedProfit: 160,
+        orderCount: 1,
+        itemsSold: 2,
+        chart: [
+          {
+            date: "2026-04-20",
+            revenue: 180,
+            discountLoss: 20,
+            estimatedProfit: 160,
+            orders: 1,
+            itemsSold: 2,
+          },
+        ],
+      },
+    });
+  });
+
+  test("downloadSalesInvoice lets sales managers download any paid invoice", async () => {
+    const invoice = {
+      _id: "invoice-1",
+      orderId: "order-1",
+      userId: "user-1",
+      invoiceNumber: "INV-ORDER1",
+      amount: 120,
+      status: "emailed",
+    };
+    const order = {
+      _id: "order-1",
+      userId: "user-1",
+      items: [{ productId: "prod-1", name: "Phone", unitPrice: 120, quantity: 1 }],
+      totalPrice: 120,
+      status: "paid",
+    };
+    const user = {
+      id: "user-1",
+      name: "Test User",
+      email: "test@example.com",
+      address: "123 Test Street",
+    };
+    const pdfBuffer = Buffer.from("pdf");
+
+    Invoice.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(invoice) });
+    Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(order) });
+    User.findById.mockReturnValue({ select: jest.fn().mockResolvedValue(user) });
+    generateInvoicePDF.mockResolvedValue(pdfBuffer);
+
+    const req = {
+      params: { invoiceId: "invoice-1" },
+      user: { id: "sales-1", role: "sales_manager" },
+    };
+    const res = createRes();
+
+    await downloadSalesInvoice(req, res);
+
+    expect(Invoice.findOne).toHaveBeenCalledWith({ _id: "invoice-1" });
+    expect(Order.findOne).toHaveBeenCalledWith({
+      _id: "order-1",
+      status: "paid",
+    });
+    expect(generateInvoicePDF).toHaveBeenCalledWith(order, user);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.send).toHaveBeenCalledWith(pdfBuffer);
   });
 });

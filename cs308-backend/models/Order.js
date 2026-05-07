@@ -17,6 +17,25 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    originalPrice: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    discountPercentage: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    campaignName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    hasDiscount: {
+      type: Boolean,
+      default: false,
+    },
     quantity: {
       type: Number,
       required: true,

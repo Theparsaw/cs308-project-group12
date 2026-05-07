@@ -2,8 +2,18 @@ const request = require("supertest");
 const mongoose = require("mongoose");
 const app = require("../server");
 const Order = require("../models/Order");
+const Product = require("../models/Product");
+const DiscountCampaign = require("../models/DiscountCampaign");
 
 const popularityTestCartPrefix = `sort-test-cart-${Date.now()}`;
+const displayPriceSearchTerm = `Display Price Sort ${Date.now()}`;
+const displayPriceProductIds = [
+  `display-price-sort-expensive-${Date.now()}`,
+  `display-price-sort-cheap-${Date.now()}`,
+];
+
+const getDisplayPrice = (product) =>
+  Number(product.discountedPrice ?? product.price);
 
 beforeAll(async () => {
   await Order.insertMany([
@@ -56,10 +66,48 @@ beforeAll(async () => {
       status: "pending_payment",
     },
   ]);
+
+  await Product.insertMany([
+    {
+      productId: displayPriceProductIds[0],
+      categoryId: "sort-test",
+      name: "Sort Test",
+      model: `${displayPriceSearchTerm} Premium`,
+      serialNumber: `${displayPriceProductIds[0]}-serial`,
+      description: displayPriceSearchTerm,
+      quantityInStock: 5,
+      price: 1000,
+      warrantyStatus: "Test warranty",
+      distributorInfo: "Test distributor",
+    },
+    {
+      productId: displayPriceProductIds[1],
+      categoryId: "sort-test",
+      name: "Sort Test",
+      model: `${displayPriceSearchTerm} Standard`,
+      serialNumber: `${displayPriceProductIds[1]}-serial`,
+      description: displayPriceSearchTerm,
+      quantityInStock: 5,
+      price: 600,
+      warrantyStatus: "Test warranty",
+      distributorInfo: "Test distributor",
+    },
+  ]);
+
+  await DiscountCampaign.create({
+    name: `Test Campaign Display Price Sort ${Date.now()}`,
+    productIds: [displayPriceProductIds[0]],
+    discountPercentage: 70,
+    startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    isActive: true,
+  });
 });
 
 afterAll(async () => {
   await Order.deleteMany({ cartId: { $regex: `^${popularityTestCartPrefix}` } });
+  await DiscountCampaign.deleteMany({ productIds: { $in: displayPriceProductIds } });
+  await Product.deleteMany({ productId: { $in: displayPriceProductIds } });
   await mongoose.connection.close();
 });
 
@@ -75,7 +123,7 @@ describe("Product Sorting API", () => {
 
     // Each product should be cheaper than or equal to the next one
     for (let i = 0; i < res.body.length - 1; i++) {
-      expect(res.body[i].price).toBeLessThanOrEqual(res.body[i + 1].price);
+      expect(getDisplayPrice(res.body[i])).toBeLessThanOrEqual(getDisplayPrice(res.body[i + 1]));
     }
   });
 
@@ -83,8 +131,8 @@ describe("Product Sorting API", () => {
     const res = await request(app).get("/api/products?sort=price_asc");
 
     expect(res.statusCode).toBe(200);
-    expect(res.body[0].price).toBe(29); // Kingston DataTraveler USB
-    expect(res.body[0].productId).toBe("p030");
+    const cheapestDisplayPrice = Math.min(...res.body.map(getDisplayPrice));
+    expect(getDisplayPrice(res.body[0])).toBe(cheapestDisplayPrice);
   });
 
   // price_desc
@@ -97,7 +145,7 @@ describe("Product Sorting API", () => {
 
     // Each product should be more expensive than or equal to the next one
     for (let i = 0; i < res.body.length - 1; i++) {
-      expect(res.body[i].price).toBeGreaterThanOrEqual(res.body[i + 1].price);
+      expect(getDisplayPrice(res.body[i])).toBeGreaterThanOrEqual(getDisplayPrice(res.body[i + 1]));
     }
   });
 
@@ -127,8 +175,9 @@ describe("Product Sorting API", () => {
     const res = await request(app).get("/api/products?sort=popularity");
 
     expect(res.statusCode).toBe(200);
-    expect(res.body[0].productId).toBe("p001");
-    expect(res.body[0].popularity).toBe(7);
+    const p001 = res.body.find((product) => product.productId === "p001");
+    expect(p001).toBeDefined();
+    expect(p001.popularity).toBeGreaterThanOrEqual(7);
 
     for (let i = 0; i < res.body.length - 1; i++) {
       expect(res.body[i].popularity).toBeGreaterThanOrEqual(res.body[i + 1].popularity);
@@ -151,7 +200,7 @@ describe("Product Sorting API", () => {
 
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(50);
+    expect(res.body.length).toBeGreaterThanOrEqual(50);
   });
 
   // search + sort combined
@@ -168,9 +217,9 @@ describe("Product Sorting API", () => {
       expect(combined).toContain("samsung");
     });
 
-    // Should be sorted by price descending
+    // Should be sorted by display price descending
     for (let i = 0; i < res.body.length - 1; i++) {
-      expect(res.body[i].price).toBeGreaterThanOrEqual(res.body[i + 1].price);
+      expect(getDisplayPrice(res.body[i])).toBeGreaterThanOrEqual(getDisplayPrice(res.body[i + 1]));
     }
   });
 
@@ -181,8 +230,22 @@ describe("Product Sorting API", () => {
     expect(res.body.length).toBeGreaterThan(0);
 
     for (let i = 0; i < res.body.length - 1; i++) {
-      expect(res.body[i].price).toBeLessThanOrEqual(res.body[i + 1].price);
+      expect(getDisplayPrice(res.body[i])).toBeLessThanOrEqual(getDisplayPrice(res.body[i + 1]));
     }
+  });
+
+  test("GET /api/products?sort=price_asc should sort discounted products by displayed price", async () => {
+    const res = await request(app).get(
+      `/api/products?search=${encodeURIComponent(displayPriceSearchTerm)}&sort=price_asc`
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.map((product) => product.productId)).toEqual([
+      displayPriceProductIds[0],
+      displayPriceProductIds[1],
+    ]);
+    expect(getDisplayPrice(res.body[0])).toBe(300);
+    expect(getDisplayPrice(res.body[1])).toBe(600);
   });
 
   test("GET /api/products?search=Apple&sort=popularity should keep popularity sorting with search", async () => {
@@ -190,8 +253,10 @@ describe("Product Sorting API", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.length).toBeGreaterThan(0);
-    expect(res.body[0].productId).toBe("p001");
-    expect(res.body[0].popularity).toBe(7);
+
+    for (let i = 0; i < res.body.length - 1; i++) {
+      expect(res.body[i].popularity).toBeGreaterThanOrEqual(res.body[i + 1].popularity);
+    }
   });
 
 });

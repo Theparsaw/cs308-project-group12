@@ -36,6 +36,24 @@ const normalizeAvailableStock = (value) => {
   return Number.isFinite(stock) ? Math.max(0, stock) : null
 }
 
+const getDisplayPricing = (product) => {
+  const hasDiscount = Boolean(product.hasDiscount)
+  const originalPrice = Number(product.originalPrice ?? product.price)
+  const unitPrice = Number(
+    hasDiscount
+      ? product.discountedPrice ?? product.price
+      : product.price
+  )
+
+  return {
+    unitPrice,
+    originalPrice,
+    discountPercentage: Number(product.discountPercentage || 0),
+    campaignName: product.campaignName || '',
+    hasDiscount,
+  }
+}
+
 const createCartId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
@@ -123,9 +141,15 @@ export const addGuestItemToCart = (product, quantity = 1) => {
     return Promise.reject(createInsufficientStockError(availableStock))
   }
 
+  const pricing = getDisplayPricing(product)
+
   if (existingItem) {
     existingItem.quantity = nextQuantity
-    existingItem.unitPrice = product.price
+    existingItem.unitPrice = pricing.unitPrice
+    existingItem.originalPrice = pricing.originalPrice
+    existingItem.discountPercentage = pricing.discountPercentage
+    existingItem.campaignName = pricing.campaignName
+    existingItem.hasDiscount = pricing.hasDiscount
     existingItem.name = product.model
     existingItem.imageUrl = product.imageUrl || ''
     existingItem.quantityInStock = availableStock
@@ -134,7 +158,11 @@ export const addGuestItemToCart = (product, quantity = 1) => {
       productId: product.productId,
       name: product.model,
       imageUrl: product.imageUrl || '',
-      unitPrice: product.price,
+      unitPrice: pricing.unitPrice,
+      originalPrice: pricing.originalPrice,
+      discountPercentage: pricing.discountPercentage,
+      campaignName: pricing.campaignName,
+      hasDiscount: pricing.hasDiscount,
       quantity,
       quantityInStock: availableStock,
     })
@@ -159,13 +187,19 @@ export const updateGuestCartItemQuantity = async (productId, quantity) => {
     throw createInsufficientStockError(availableStock)
   }
 
+  const pricing = getDisplayPricing(product)
+
   const nextItems = guestItems.map((item) =>
     item.productId === productId
       ? {
           ...item,
           name: product.model,
           imageUrl: product.imageUrl || '',
-          unitPrice: product.price,
+          unitPrice: pricing.unitPrice,
+          originalPrice: pricing.originalPrice,
+          discountPercentage: pricing.discountPercentage,
+          campaignName: pricing.campaignName,
+          hasDiscount: pricing.hasDiscount,
           quantity,
           quantityInStock: availableStock,
         }

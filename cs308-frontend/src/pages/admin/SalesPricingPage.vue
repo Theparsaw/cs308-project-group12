@@ -140,6 +140,204 @@
       </div>
     </div>
 
+    <div class="mt-10 rounded-3xl border border-gray-200 bg-white p-6">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Sales Reports</h2>
+        <p class="text-gray-600 mt-2">
+          View invoices, revenue, and discount loss by date range.
+        </p>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            Start Date
+          </label>
+          <input
+            v-model="reportFilters.startDate"
+            type="date"
+            class="w-full rounded-2xl border border-gray-300 px-4 py-3"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">
+            End Date
+          </label>
+          <input
+            v-model="reportFilters.endDate"
+            type="date"
+            class="w-full rounded-2xl border border-gray-300 px-4 py-3"
+          />
+        </div>
+
+        <button
+          @click="loadSalesReports"
+          :disabled="reportLoading"
+          class="self-end rounded-2xl bg-slate-900 px-5 py-3 font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+        >
+          {{ reportLoading ? 'Loading...' : 'Apply' }}
+        </button>
+
+        <button
+          @click="printSalesReport"
+          class="self-end rounded-2xl bg-gray-100 px-5 py-3 font-semibold text-gray-700 transition hover:bg-gray-200"
+        >
+          Print
+        </button>
+      </div>
+
+      <p v-if="reportError" class="mt-3 text-sm text-red-600">
+        {{ reportError }}
+      </p>
+
+      <div class="mt-6 grid gap-4 md:grid-cols-4">
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-sm text-gray-500">Revenue</p>
+          <p class="mt-2 text-2xl font-bold text-gray-900">
+            {{ formatCurrency(salesReport.revenue) }}
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-sm text-gray-500">Discount Loss</p>
+          <p class="mt-2 text-2xl font-bold text-red-600">
+            {{ formatCurrency(salesReport.discountLoss) }}
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-sm text-gray-500">Estimated Profit</p>
+          <p class="mt-2 text-2xl font-bold text-emerald-700">
+            {{ formatCurrency(salesReport.estimatedProfit) }}
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <p class="text-sm text-gray-500">Orders / Items</p>
+          <p class="mt-2 text-2xl font-bold text-gray-900">
+            {{ salesReport.orderCount }} / {{ salesReport.itemsSold }}
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">
+          Revenue and Loss Chart
+        </h3>
+
+        <div
+          v-if="salesReport.chart.length === 0"
+          class="rounded-2xl border border-dashed border-gray-200 p-6 text-center text-gray-500"
+        >
+          No paid orders found for this date range.
+        </div>
+
+        <div v-else class="space-y-4">
+          <div
+            v-for="point in salesReport.chart"
+            :key="point.date"
+            class="rounded-2xl border border-gray-100 p-4"
+          >
+            <div class="mb-3 flex items-center justify-between gap-4">
+              <p class="font-semibold text-gray-900">{{ point.date }}</p>
+              <p class="text-sm text-gray-500">
+                {{ point.orders }} order{{ point.orders === 1 ? '' : 's' }}
+              </p>
+            </div>
+
+            <div class="space-y-2">
+              <div>
+                <div class="mb-1 flex justify-between text-xs text-gray-500">
+                  <span>Revenue</span>
+                  <span>{{ formatCurrency(point.revenue) }}</span>
+                </div>
+                <div class="h-3 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    class="h-full rounded-full bg-emerald-500"
+                    :style="{ width: getChartWidth(point.revenue) }"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div class="mb-1 flex justify-between text-xs text-gray-500">
+                  <span>Discount loss</span>
+                  <span>{{ formatCurrency(point.discountLoss) }}</span>
+                </div>
+                <div class="h-3 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    class="h-full rounded-full bg-red-500"
+                    :style="{ width: getChartWidth(point.discountLoss) }"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <h3 class="text-xl font-bold text-gray-900">
+            Invoices in Range
+          </h3>
+          <p class="text-sm text-gray-500">
+            {{ salesInvoiceSummary.count }} invoice{{ salesInvoiceSummary.count === 1 ? '' : 's' }}
+            · {{ formatCurrency(salesInvoiceSummary.totalAmount) }}
+          </p>
+        </div>
+
+        <div
+          v-if="salesInvoices.length === 0"
+          class="rounded-2xl border border-dashed border-gray-200 p-6 text-center text-gray-500"
+        >
+          No invoices found for this date range.
+        </div>
+
+        <div v-else class="overflow-hidden rounded-2xl border border-gray-200">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-gray-700">Invoice</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-700">Customer</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-700">Amount</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-700">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="invoice in salesInvoices" :key="invoice.id">
+                <td class="px-4 py-3">
+                  <p class="font-semibold text-gray-900">{{ invoice.invoiceNumber }}</p>
+                  <p class="text-xs text-gray-500">Order {{ invoice.orderId }}</p>
+                </td>
+                <td class="px-4 py-3">
+                  <p class="font-medium text-gray-900">{{ invoice.customerName }}</p>
+                  <p class="text-xs text-gray-500">{{ invoice.customerEmail }}</p>
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                  {{ formatDate(invoice.createdAt) }}
+                </td>
+                <td class="px-4 py-3 font-semibold text-gray-900">
+                  {{ formatCurrency(invoice.amount) }}
+                </td>
+                <td class="px-4 py-3">
+                  <button
+                    @click="handleDownloadSalesInvoice(invoice)"
+                    :disabled="downloadingInvoiceId === invoice.id"
+                    class="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+                  >
+                    {{ downloadingInvoiceId === invoice.id ? 'Downloading...' : 'PDF' }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- CAMPAIGN MANAGEMENT -->
 
     <div
@@ -402,6 +600,12 @@ import {
   updateCampaign
 } from '../../api/discountCampaignApi'
 
+import {
+  downloadSalesInvoice,
+  getSalesInvoices,
+  getSalesReport,
+} from '../../api/invoiceApi'
+
 const products = ref([])
 const campaigns = ref([])
 
@@ -420,11 +624,40 @@ const creatingCampaign = ref(false)
 
 const campaignSuccess = ref('')
 const campaignError = ref('')
+const reportLoading = ref(false)
+const reportError = ref('')
+const salesInvoices = ref([])
+const salesInvoiceSummary = ref({
+  count: 0,
+  totalAmount: 0,
+})
+const salesReport = ref({
+  revenue: 0,
+  discountLoss: 0,
+  estimatedProfit: 0,
+  orderCount: 0,
+  itemsSold: 0,
+  chart: [],
+})
+const downloadingInvoiceId = ref('')
 
 const priceInputs = reactive({})
 const saving = reactive({})
 const success = reactive({})
 const errors = reactive({})
+
+const today = new Date()
+const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+const toDateInput = (date) => {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+const reportFilters = ref({
+  startDate: toDateInput(firstDayOfMonth),
+  endDate: toDateInput(today),
+})
 
 const campaignForm = ref({
   name: '',
@@ -457,6 +690,20 @@ const filteredCampaignProducts = computed(() => {
       )
   )
 })
+
+const maxChartValue = computed(() => {
+  const values = salesReport.value.chart.flatMap((point) => [
+    Number(point.revenue || 0),
+    Number(point.discountLoss || 0),
+  ])
+
+  return Math.max(...values, 1)
+})
+
+const reportParams = computed(() => ({
+  startDate: reportFilters.value.startDate,
+  endDate: reportFilters.value.endDate,
+}))
 
 const loadProducts = async () => {
   loading.value = true
@@ -499,6 +746,38 @@ const loadCampaigns = async () => {
   } finally {
 
     loadingCampaigns.value = false
+  }
+}
+
+const loadSalesReports = async () => {
+  reportLoading.value = true
+  reportError.value = ''
+
+  try {
+    const [invoicesRes, reportRes] = await Promise.all([
+      getSalesInvoices(reportParams.value),
+      getSalesReport(reportParams.value),
+    ])
+
+    salesInvoices.value = invoicesRes.data?.invoices || []
+    salesInvoiceSummary.value = invoicesRes.data?.summary || {
+      count: 0,
+      totalAmount: 0,
+    }
+    salesReport.value = reportRes.data?.summary || {
+      revenue: 0,
+      discountLoss: 0,
+      estimatedProfit: 0,
+      orderCount: 0,
+      itemsSold: 0,
+      chart: [],
+    }
+  } catch (err) {
+    reportError.value =
+      err?.response?.data?.message ||
+      'Failed to load sales reports'
+  } finally {
+    reportLoading.value = false
   }
 }
 
@@ -669,6 +948,50 @@ const formatCampaignDate = (date) => {
   return new Date(date).toLocaleDateString()
 }
 
+const formatCurrency = (value) => {
+  return `$${Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+const formatDate = (value) => {
+  if (!value) return 'Unknown date'
+  return new Date(value).toLocaleDateString()
+}
+
+const getChartWidth = (value) => {
+  const width = Math.round((Number(value || 0) / maxChartValue.value) * 100)
+  return `${Math.max(width, Number(value || 0) > 0 ? 4 : 0)}%`
+}
+
+const printSalesReport = () => {
+  window.print()
+}
+
+const handleDownloadSalesInvoice = async (invoice) => {
+  downloadingInvoiceId.value = invoice.id
+  reportError.value = ''
+
+  try {
+    const res = await downloadSalesInvoice(invoice.id)
+    const blob = new Blob([res.data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = `${invoice.invoiceNumber}.pdf`
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    reportError.value =
+      err?.response?.data?.message ||
+      'Failed to download invoice PDF'
+  } finally {
+    downloadingInvoiceId.value = ''
+  }
+}
+
 const handleReactivateCampaign = async (id) => {
 
   try {
@@ -708,6 +1031,7 @@ onMounted(async () => {
   await Promise.all([
     loadProducts(),
     loadCampaigns(),
+    loadSalesReports(),
   ])
 })
 </script>

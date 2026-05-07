@@ -14,3 +14,21 @@ export const downloadInvoice = (invoiceId) =>
     ...getAuthConfig(),
     responseType: 'blob',
   })
+
+export const getSalesInvoices = (params = {}) =>
+  api.get('/invoices/sales', {
+    ...getAuthConfig(),
+    params,
+  })
+
+export const getSalesReport = (params = {}) =>
+  api.get('/invoices/sales/report', {
+    ...getAuthConfig(),
+    params,
+  })
+
+export const downloadSalesInvoice = (invoiceId) =>
+  api.get(`/invoices/sales/${invoiceId}/download`, {
+    ...getAuthConfig(),
+    responseType: 'blob',
+  })

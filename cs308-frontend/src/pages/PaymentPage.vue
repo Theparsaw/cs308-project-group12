@@ -300,7 +300,7 @@ const handleSubmit = async () => {
     if (res.data.success) {
       cartStore.clear()
       successRedirectTimeout = window.setTimeout(() => {
-        router.push('/profile?tab=orders')
+        router.push('/profile?tab=invoices')
       }, 1200)
     }
   } catch (err) {

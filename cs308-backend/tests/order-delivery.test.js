@@ -6,7 +6,7 @@ const User = require("../models/User");
 const createEmail = (label) => `ordertest-${label}-${Date.now()}@example.com`;
 const createdUserIds = [];
 let customerToken;
-let managerToken;
+let productManagerToken;
 
 beforeAll(async () => {
   // Register a regular customer
@@ -18,12 +18,12 @@ beforeAll(async () => {
   customerToken = customerRes.body.token;
   createdUserIds.push(customerRes.body.user.id);
 
-  // Login as sales manager
+  // Login as product manager, who also owns delivery operations.
   const managerRes = await request(app).post("/api/auth/login").send({
-    email: "salesmanager@store.com",
-    password: "sales123",
+    email: "productmanager@store.com",
+    password: "product123",
   });
-  managerToken = managerRes.body.token;
+  productManagerToken = managerRes.body.token;
 });
 
 afterAll(async () => {
@@ -68,10 +68,10 @@ describe("Delivery API", () => {
     expect(res.statusCode).toBe(403);
   });
 
-  test("GET /api/deliveries works for sales manager", async () => {
+  test("GET /api/deliveries works for product manager", async () => {
     const res = await request(app)
       .get("/api/deliveries")
-      .set("Authorization", `Bearer ${managerToken}`);
+      .set("Authorization", `Bearer ${productManagerToken}`);
     expect(res.statusCode).toBe(200);
   });
 
@@ -93,7 +93,7 @@ describe("Delivery API", () => {
     const fakeId = new mongoose.Types.ObjectId();
     const res = await request(app)
       .patch(`/api/deliveries/${fakeId}/status`)
-      .set("Authorization", `Bearer ${managerToken}`)
+      .set("Authorization", `Bearer ${productManagerToken}`)
       .send({ status: "in_transit" });
     expect(res.statusCode).toBe(400);
   });

@@ -124,6 +124,26 @@ const buildSortStage = (sort, hasSearchScore = false) => {
     : { $sort: { createdAt: -1 } };
 };
 
+const sortByDisplayPrice = (products, sort) => {
+  if (sort !== "price_asc" && sort !== "price_desc") {
+    return products;
+  }
+
+  const direction = sort === "price_asc" ? 1 : -1;
+
+  return [...products].sort((left, right) => {
+    const leftPrice = Number(left.discountedPrice ?? left.price);
+    const rightPrice = Number(right.discountedPrice ?? right.price);
+    const priceDifference = (leftPrice - rightPrice) * direction;
+
+    if (priceDifference !== 0) {
+      return priceDifference;
+    }
+
+    return new Date(right.createdAt ?? 0) - new Date(left.createdAt ?? 0);
+  });
+};
+
 const getAllProducts = asyncHandler(async (req, res) => {
   const rawSearch = req.query.search;
   const search = typeof rawSearch === "string" ? rawSearch.trim() : "";
@@ -155,7 +175,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
       })
     );
 
-    return res.status(200).json(productsWithDiscounts);
+    return res.status(200).json(sortByDisplayPrice(productsWithDiscounts, sort));
   }
 
   // Search with sort applied
@@ -213,7 +233,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
         })
       );
 
-      return res.status(200).json(productsWithDiscounts);
+      return res.status(200).json(sortByDisplayPrice(productsWithDiscounts, sort));
     }
 
     // Fallback: regex search with sort applied
@@ -238,7 +258,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
       })
     );
 
-    return res.status(200).json(productsWithDiscounts);
+    return res.status(200).json(sortByDisplayPrice(productsWithDiscounts, sort));
 
   } catch (error) {
     // Safe fallback if Atlas Search is unavailable
@@ -263,7 +283,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
       })
     );
 
-    return res.status(200).json(productsWithDiscounts);
+    return res.status(200).json(sortByDisplayPrice(productsWithDiscounts, sort));
   }
 });
 

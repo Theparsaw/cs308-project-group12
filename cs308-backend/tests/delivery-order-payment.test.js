@@ -27,6 +27,8 @@ jest.mock("../models/Cart", () => ({
 
 jest.mock("../models/Invoice", () => ({
   create: jest.fn(),
+  find: jest.fn(),
+  findOne: jest.fn(),
 }));
 
 jest.mock("../models/User", () => ({
@@ -849,6 +851,7 @@ describe("payment, delivery, and tracking coverage", () => {
 
       Delivery.find.mockReturnValue(createQuery(deliveries));
       User.find.mockReturnValue(createQuery(users));
+      Invoice.find.mockReturnValue(createQuery([]));
 
       await getAllDeliveries(req, res, jest.fn());
 
@@ -946,6 +949,7 @@ describe("payment, delivery, and tracking coverage", () => {
           email: "ada@example.com",
         }),
       );
+      Invoice.findOne.mockReturnValue(createQuery(null));
 
       await updateDeliveryStatus(req, res, next);
 
@@ -967,14 +971,14 @@ describe("payment, delivery, and tracking coverage", () => {
   });
 
   describe("delivery permissions", () => {
-    test("authorize blocks non-sales-manager users from delivery updates", () => {
+    test("authorize blocks non-product-manager users from delivery updates", () => {
       const req = {
         user: { id: "user-1", role: "customer" },
       };
       const res = createRes();
       const next = jest.fn();
 
-      authorize("sales_manager")(req, res, next);
+      authorize("product_manager")(req, res, next);
 
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -985,14 +989,14 @@ describe("payment, delivery, and tracking coverage", () => {
       );
     });
 
-    test("authorize allows sales managers to update delivery status", () => {
+    test("authorize allows product managers to update delivery status", () => {
       const req = {
-        user: { id: "manager-1", role: "sales_manager" },
+        user: { id: "manager-1", role: "product_manager" },
       };
       const res = createRes();
       const next = jest.fn();
 
-      authorize("sales_manager")(req, res, next);
+      authorize("product_manager")(req, res, next);
 
       expect(next).toHaveBeenCalledWith();
     });
