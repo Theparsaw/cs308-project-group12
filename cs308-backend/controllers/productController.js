@@ -115,13 +115,14 @@ const buildRatingStages = () => [
 const buildSortStage = (sort, hasSearchScore = false) => {
   if (sort === "price_asc") return { $sort: { price: 1, createdAt: -1 } };
   if (sort === "price_desc") return { $sort: { price: -1, createdAt: -1 } };
+  if (sort === "newest") return { $sort: { createdAt: -1 } };
   if (sort === "popularity") {
     return { $sort: { popularity: -1, createdAt: -1 } };
   }
 
   return hasSearchScore
     ? { $sort: { score: -1, createdAt: -1 } }
-    : { $sort: { createdAt: -1 } };
+    : { $sort: { productId: 1 } };
 };
 
 const sortByDisplayPrice = (products, sort) => {
@@ -148,8 +149,7 @@ const getAllProducts = asyncHandler(async (req, res) => {
   const rawSearch = req.query.search;
   const search = typeof rawSearch === "string" ? rawSearch.trim() : "";
 
-  // Validate sort parameter — only accept these 3 values
-  const validSortOptions = ["price_asc", "price_desc", "popularity"];
+  const validSortOptions = ["price_asc", "price_desc", "popularity", "newest"];
   const rawSort = req.query.sort;
   const sort = validSortOptions.includes(rawSort) ? rawSort : null;
 

@@ -5,11 +5,11 @@
       <span class="text-sm text-gray-500">{{ products.length }} products</span>
     </div>
 
-    <div class="flex gap-4 overflow-x-auto pb-2">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <div
         v-for="product in products"
         :key="product.productId"
-        class="group relative flex min-w-[260px] max-w-[260px] flex-shrink-0"
+        class="group relative flex min-w-0"
       >
         <WishlistButton
           :product-id="product.productId"

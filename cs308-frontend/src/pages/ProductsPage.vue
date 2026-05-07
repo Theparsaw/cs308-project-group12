@@ -93,34 +93,12 @@
 
         <template v-else>
           <ProductSection
-            v-if="selectedCategories.length > 0"
-            :title="selectedCategories.length === 1 ? getCategoryLabel(selectedCategories[0]) : 'Selected Categories'"
+            :title="selectedCategories.length > 0
+              ? (selectedCategories.length === 1 ? getCategoryLabel(selectedCategories[0]) : 'Selected Categories')
+              : 'All Products'"
             :products="filteredProducts"
             :getCategoryLabel="getCategoryLabel"
           />
-
-          <template v-else>
-            <ProductSection
-              title="Popular Products"
-              :products="popularProducts"
-              :getCategoryLabel="getCategoryLabel"
-            />
-            <ProductSection
-              title="Laptops"
-              :products="laptopProducts"
-              :getCategoryLabel="getCategoryLabel"
-            />
-            <ProductSection
-              title="Gaming"
-              :products="gamingProducts"
-              :getCategoryLabel="getCategoryLabel"
-            />
-            <ProductSection
-              title="Audio Picks"
-              :products="audioProducts"
-              :getCategoryLabel="getCategoryLabel"
-            />
-          </template>
         </template>
       </template>
     </div>
@@ -229,10 +207,6 @@ const heroSlides = computed(() =>
     imageAlt: `${product.model} by ${product.name}`
   }))
 )
-
-const laptopProducts = computed(() => products.value.filter(p => p.categoryId === 'laptops'))
-const audioProducts = computed(() => products.value.filter(p => p.categoryId === 'audio'))
-const gamingProducts = computed(() => products.value.filter(p => p.categoryId === 'gaming'))
 
 const getCategoryLabel = (categoryId) => {
   const label = categoryMap.value[categoryId] || categoryId;
