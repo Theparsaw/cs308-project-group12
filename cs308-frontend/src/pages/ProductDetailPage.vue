@@ -36,6 +36,9 @@
           <div class="mb-3 flex items-start justify-between gap-4">
             <div>
               <h1 class="text-3xl font-bold mb-2 text-gray-900">{{ product.model }}</h1>
+              <p class="mb-3 text-sm font-medium text-gray-500">
+                Product ID: {{ displayProductId }}
+              </p>
               <div v-if="product.hasDiscount">
                 <p class="text-sm text-gray-400 line-through">
                   ${{ Number(product.originalPrice).toLocaleString() }}
@@ -79,6 +82,7 @@
           <p class="text-gray-700 mb-6">{{ product.description }}</p>
 
           <div class="grid grid-cols-2 gap-4 mb-8 text-sm">
+            <div><strong class="text-gray-900">Product ID:</strong> <span class="text-gray-600">{{ displayProductId }}</span></div>
             <div><strong class="text-gray-900">Brand:</strong> <span class="text-gray-600">{{ product.name }}</span></div>
             <div><strong class="text-gray-900">Category:</strong> <span class="text-gray-600">{{ product.categoryId }}</span></div>
             <div><strong class="text-gray-900">Stock:</strong> <span class="text-gray-600">{{ product.quantityInStock }}</span></div>
@@ -316,6 +320,7 @@ const currentUserId = computed(() =>
   String(authStore.user?.id || authStore.user?._id || getUserIdFromToken())
 )
 const isEditingReview = computed(() => Boolean(editingReviewId.value))
+const displayProductId = computed(() => product.value?.productId || route.params.id)
 const availableStock = computed(() => {
   const stock = Number(product.value?.quantityInStock)
   return Number.isFinite(stock) ? Math.max(0, stock) : 0

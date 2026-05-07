@@ -43,6 +43,10 @@
             {{ getCategoryLabel(product.categoryId) }}
           </p>
 
+          <p class="text-xs font-medium text-gray-500 mb-1">
+            Product ID: {{ product.productId }}
+          </p>
+
           <h3 class="font-semibold text-gray-900 line-clamp-2 min-h-[48px]">
             {{ product.model }}
           </h3>
