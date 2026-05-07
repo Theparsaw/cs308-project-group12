@@ -68,6 +68,28 @@ describe("Product Search API", () => {
     });
   });
 
+  test("GET /api/products finds a product when searching with its full description", async () => {
+    const description =
+      "Premium Apple smartphone with advanced camera system, titanium design, and high-performance chipset.";
+    const res = await request(app).get(
+      `/api/products?search=${encodeURIComponent(description)}`
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.map((product) => product.productId)).toContain("p001");
+  });
+
+  test("GET /api/products finds p036 when searching with its full tablet description", async () => {
+    const description =
+      "Premium tablet for note-taking, media use, productivity, and creative professional workflows.";
+    const res = await request(app).get(
+      `/api/products?search=${encodeURIComponent(description)}`
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.map((product) => product.productId)).toContain("p036");
+  });
+
   // Case insensitive
   test("GET /api/products?search=SAMSUNG returns same results as search=Samsung", async () => {
     const upperRes = await request(app).get("/api/products?search=SAMSUNG");

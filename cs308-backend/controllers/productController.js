@@ -8,27 +8,115 @@ const { getDiscountedPrice } = require("../utils/discount");
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const buildRegexFallbackFilter = (search) => {
+const SEARCH_TERM_LIMIT = 12;
+const SEARCH_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "by",
+  "for",
+  "from",
+  "in",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+  "with",
+]);
+
+const normalizeSearchTerms = (search) => {
   const terms = String(search)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((term) => escapeRegex(term));
+    .toLowerCase()
+    .match(/[a-z0-9]+(?:-[a-z0-9]+)*/g);
+
+  if (!terms) return [];
+
+  return [...new Set(terms)]
+    .filter((term) => term.length > 1 && !SEARCH_STOP_WORDS.has(term))
+    .slice(0, SEARCH_TERM_LIMIT);
+};
+
+const buildRegexFallbackFilter = (search) => {
+  const terms = normalizeSearchTerms(search).map((term) => escapeRegex(term));
 
   if (terms.length === 0) return {};
 
   return {
-    $or: terms.flatMap((term) => {
+    $and: terms.map((term) => {
       const regex = new RegExp(term, "i");
-      return [
-        { name: regex },
-        { model: regex },
-        { description: regex },
-        { categoryId: regex },
-        { productId: regex },
-      ];
+      return {
+        $or: [
+          { name: regex },
+          { model: regex },
+          { description: regex },
+          { categoryId: regex },
+          { productId: regex },
+        ],
+      };
     }),
   };
+};
+
+const getAtlasMinimumShouldMatch = (search) => {
+  const terms = normalizeSearchTerms(search);
+
+  if (terms.length <= 2) return 1;
+
+  return Math.ceil(terms.length * 0.6);
+};
+
+const buildAtlasSearchShouldClauses = (search) => {
+  const terms = normalizeSearchTerms(search);
+  const textPaths = ["name", "model", "description", "categoryId", "productId"];
+  const should = [
+    {
+      autocomplete: {
+        query: search,
+        path: "name",
+        fuzzy: { maxEdits: 1, prefixLength: 1 },
+      },
+    },
+    {
+      autocomplete: {
+        query: search,
+        path: "model",
+        fuzzy: { maxEdits: 1, prefixLength: 1 },
+      },
+    },
+    {
+      text: {
+        query: search,
+        path: textPaths,
+        fuzzy: { maxEdits: 1, prefixLength: 1 },
+      },
+    },
+  ];
+
+  terms.forEach((term) => {
+    should.push({
+      text: {
+        query: term,
+        path: textPaths,
+        fuzzy: { maxEdits: 1, prefixLength: 1 },
+      },
+    });
+  });
+
+  return should;
+};
+
+const mergeProductsById = (...productLists) => {
+  const productsById = new Map();
+
+  productLists.flat().forEach((product) => {
+    if (!productsById.has(product.productId)) {
+      productsById.set(product.productId, product);
+    }
+  });
+
+  return Array.from(productsById.values());
 };
 
 const buildPopularityStages = () => [
@@ -185,30 +273,8 @@ const getAllProducts = asyncHandler(async (req, res) => {
         $search: {
           index: "product_search",
           compound: {
-            should: [
-              {
-                autocomplete: {
-                  query: search,
-                  path: "name",
-                  fuzzy: { maxEdits: 1, prefixLength: 1 },
-                },
-              },
-              {
-                autocomplete: {
-                  query: search,
-                  path: "model",
-                  fuzzy: { maxEdits: 1, prefixLength: 1 },
-                },
-              },
-              {
-                text: {
-                  query: search,
-                  path: ["name", "model", "description", "categoryId", "productId"],
-                  fuzzy: { maxEdits: 1, prefixLength: 1 },
-                },
-              },
-            ],
-            minimumShouldMatch: 1,
+            should: buildAtlasSearchShouldClauses(search),
+            minimumShouldMatch: getAtlasMinimumShouldMatch(search),
           },
         },
       },
@@ -218,9 +284,18 @@ const getAllProducts = asyncHandler(async (req, res) => {
       buildSortStage(sort, true),
     ]);
 
-    if (atlasResults.length > 0) {
+    const fallbackFilter = buildRegexFallbackFilter(search);
+    const fallbackResults = await Product.aggregate([
+      { $match: fallbackFilter },
+      ...buildPopularityStages(),
+      ...buildRatingStages(),
+      buildSortStage(sort),
+    ]);
+    const combinedResults = mergeProductsById(fallbackResults, atlasResults);
+
+    if (combinedResults.length > 0) {
       const productsWithDiscounts = await Promise.all(
-        atlasResults.map(async (product) => {
+        combinedResults.map(async (product) => {
           const pricing = await getDiscountedPrice(product);
 
           return {
@@ -237,13 +312,6 @@ const getAllProducts = asyncHandler(async (req, res) => {
     }
 
     // Fallback: regex search with sort applied
-    const fallbackFilter = buildRegexFallbackFilter(search);
-    const fallbackResults = await Product.aggregate([
-      { $match: fallbackFilter },
-      ...buildPopularityStages(),
-      ...buildRatingStages(),
-      buildSortStage(sort),
-    ]);
     const productsWithDiscounts = await Promise.all(
       fallbackResults.map(async (product) => {
         const pricing = await getDiscountedPrice(product);
