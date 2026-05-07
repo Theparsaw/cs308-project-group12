@@ -17,6 +17,25 @@ const normalizeGuestCart = (cartId, items = []) => ({
   totalPrice: calculateTotalPrice(items),
 })
 
+const createInsufficientStockError = (availableStock) => {
+  const error = new Error('Requested quantity exceeds available stock')
+
+  error.response = {
+    data: {
+      message: 'Requested quantity exceeds available stock',
+      code: 'INSUFFICIENT_STOCK',
+      availableStock,
+    },
+  }
+
+  return error
+}
+
+const normalizeAvailableStock = (value) => {
+  const stock = Number(value)
+  return Number.isFinite(stock) ? Math.max(0, stock) : null
+}
+
 const createCartId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
@@ -97,12 +116,19 @@ export const getGuestCart = () =>
 export const addGuestItemToCart = (product, quantity = 1) => {
   const guestItems = getStoredGuestItems()
   const existingItem = guestItems.find((item) => item.productId === product.productId)
+  const availableStock = normalizeAvailableStock(product.quantityInStock)
+  const nextQuantity = (Number(existingItem?.quantity) || 0) + quantity
+
+  if (availableStock !== null && nextQuantity > availableStock) {
+    return Promise.reject(createInsufficientStockError(availableStock))
+  }
 
   if (existingItem) {
-    existingItem.quantity += quantity
+    existingItem.quantity = nextQuantity
     existingItem.unitPrice = product.price
     existingItem.name = product.model
     existingItem.imageUrl = product.imageUrl || ''
+    existingItem.quantityInStock = availableStock
   } else {
     guestItems.push({
       productId: product.productId,
@@ -110,17 +136,39 @@ export const addGuestItemToCart = (product, quantity = 1) => {
       imageUrl: product.imageUrl || '',
       unitPrice: product.price,
       quantity,
+      quantityInStock: availableStock,
     })
   }
 
   return resolveGuestCartResponse(guestItems)
 }
 
-export const updateGuestCartItemQuantity = (productId, quantity) => {
+export const updateGuestCartItemQuantity = async (productId, quantity) => {
   const guestItems = getStoredGuestItems()
+  const existingItem = guestItems.find((item) => item.productId === productId)
+
+  if (!existingItem) {
+    return resolveGuestCartResponse(guestItems)
+  }
+
+  const productRes = await api.get(`/products/${productId}`)
+  const product = productRes.data
+  const availableStock = normalizeAvailableStock(product.quantityInStock)
+
+  if (availableStock !== null && quantity > availableStock) {
+    throw createInsufficientStockError(availableStock)
+  }
+
   const nextItems = guestItems.map((item) =>
     item.productId === productId
-      ? { ...item, quantity }
+      ? {
+          ...item,
+          name: product.model,
+          imageUrl: product.imageUrl || '',
+          unitPrice: product.price,
+          quantity,
+          quantityInStock: availableStock,
+        }
       : item
   )
 

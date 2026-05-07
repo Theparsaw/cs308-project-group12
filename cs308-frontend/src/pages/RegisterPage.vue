@@ -82,7 +82,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerUser } from '../api/authApi'
-import { getCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
+import { getCart, getGuestCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
@@ -110,6 +110,11 @@ const syncCartTotalItems = async () => {
   }
 }
 
+const hasGuestCartItems = async () => {
+  const guestCartRes = await getGuestCart()
+  return Number(guestCartRes.data?.totalItems || 0) > 0
+}
+
 const handleRegister = async () => {
   // Clear any previous error
   error.value = ''
@@ -129,6 +134,8 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
+    const shouldOpenCartAfterRegister = await hasGuestCartItems()
+
     // Send name, email, password to the backend
     const res = await registerUser({
       name: name.value,
@@ -154,8 +161,7 @@ const handleRegister = async () => {
       return
     }
 
-    // Redirect to home page after successful registration
-    router.push('/')
+    router.push(shouldOpenCartAfterRegister ? '/cart' : '/')
 
   } catch (err) {
     // Show the error message from the backend

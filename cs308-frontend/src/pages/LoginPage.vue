@@ -58,7 +58,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { loginUser } from '../api/authApi'
-import { getCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
+import { getCart, getGuestCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
@@ -84,11 +84,17 @@ const syncCartTotalItems = async () => {
   }
 }
 
+const hasGuestCartItems = async () => {
+  const guestCartRes = await getGuestCart()
+  return Number(guestCartRes.data?.totalItems || 0) > 0
+}
+
 const handleLogin = async () => {
   error.value = ''
   loading.value = true
 
   try {
+    const shouldOpenCartAfterLogin = await hasGuestCartItems()
     const res = await loginUser({ email: email.value, password: password.value })
 
     authStore.setAuth(res.data.token, res.data.user)
@@ -125,6 +131,8 @@ const handleLogin = async () => {
       router.push('/admin/deliveries')
     } else if (userRole === 'product_manager' || userRole === 'admin') {
       router.push('/admin/products')
+    } else if (shouldOpenCartAfterLogin) {
+      router.push('/cart')
     } else {
       router.push('/')
     }
