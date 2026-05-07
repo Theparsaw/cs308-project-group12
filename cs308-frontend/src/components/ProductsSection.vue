@@ -9,7 +9,7 @@
       <div
         v-for="product in products"
         :key="product.productId"
-        class="group relative min-w-[260px] max-w-[260px] flex-shrink-0"
+        class="group relative flex min-w-[260px] max-w-[260px] flex-shrink-0"
       >
         <WishlistButton
           :product-id="product.productId"
@@ -18,7 +18,7 @@
 
         <router-link
           :to="`/products/${product.productId}`"
-          class="relative z-10 block overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md cursor-pointer"
+          class="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md cursor-pointer"
         >
           <div
             class="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-slate-950/0 transition-colors duration-200 group-hover:bg-slate-950/35 group-focus-within:bg-slate-950/35"
@@ -58,7 +58,7 @@
             {{ product.description }}
           </p>
 
-          <div class="mt-4">
+          <div class="mt-auto min-h-[68px] pt-4">
             <div v-if="product.hasDiscount">
               <p class="text-sm text-gray-400 line-through">
                 ${{ Number(product.originalPrice).toLocaleString() }}
