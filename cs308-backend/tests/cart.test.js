@@ -72,6 +72,29 @@ describe("Cart API Endpoints", () => {
     expect(res.body.totalPrice).toBe(2598);
   });
 
+  test("GET /api/cart/:cartId falls back to the user's existing cart", async () => {
+    const cartId = createCartId("existing");
+    const unknownCartId = createCartId("unknown");
+    const token = await registerCustomer("fallback");
+
+    await request(app)
+      .post(`/api/cart/${cartId}/items`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ productId: "p001", quantity: 1 });
+
+    const res = await request(app)
+      .get(`/api/cart/${unknownCartId}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.cartId).toBe(cartId);
+    expect(res.body.totalItems).toBe(1);
+    expect(res.body.items[0]).toMatchObject({
+      productId: "p001",
+      quantity: 1,
+    });
+  });
+
   test("POST /api/cart/:cartId/items merges duplicate products and keeps total accurate", async () => {
     const cartId = createCartId("merge");
     const token = await registerCustomer("merge");

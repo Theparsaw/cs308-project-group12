@@ -58,7 +58,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { loginUser } from '../api/authApi'
-import { getCart, getGuestCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
+import { activateUserCartId, getCart, getGuestCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
@@ -98,7 +98,7 @@ const handleLogin = async () => {
     const res = await loginUser({ email: email.value, password: password.value })
 
     authStore.setAuth(res.data.token, res.data.user)
-    resetCartId()
+    activateUserCartId()
 
     const userRole = res.data.user?.role
     const isAdminLike =

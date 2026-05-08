@@ -3,6 +3,7 @@ import { authStore } from '../store/auth'
 
 const CART_ID_KEY = 'guest-cart-id'
 const GUEST_CART_KEY = 'guest-cart'
+const USER_CART_ID_PREFIX = 'user-cart-id:'
 
 const calculateTotalItems = (items = []) =>
   items.reduce((count, item) => count + item.quantity, 0)
@@ -62,6 +63,28 @@ const createCartId = () => {
   return `guest-${Date.now()}`
 }
 
+const getUserCartStorageKey = () => {
+  const userId = authStore.user?.id || authStore.user?._id
+  return userId ? `${USER_CART_ID_PREFIX}${userId}` : null
+}
+
+const saveCurrentCartIdForUser = (cartId) => {
+  const userCartStorageKey = getUserCartStorageKey()
+
+  if (userCartStorageKey && cartId) {
+    localStorage.setItem(userCartStorageKey, cartId)
+  }
+}
+
+const setCurrentCartIdForUser = (cartId) => {
+  if (!cartId) {
+    return
+  }
+
+  localStorage.setItem(CART_ID_KEY, cartId)
+  saveCurrentCartIdForUser(cartId)
+}
+
 export const getCartId = () => {
   const existingCartId = localStorage.getItem(CART_ID_KEY)
 
@@ -73,6 +96,18 @@ export const getCartId = () => {
   localStorage.setItem(CART_ID_KEY, newCartId)
 
   return newCartId
+}
+
+export const activateUserCartId = () => {
+  const userCartStorageKey = getUserCartStorageKey()
+  const savedUserCartId = userCartStorageKey
+    ? localStorage.getItem(userCartStorageKey)
+    : null
+  const cartId = savedUserCartId || createCartId()
+
+  setCurrentCartIdForUser(cartId)
+
+  return cartId
 }
 
 export const resetCartId = () => {
@@ -232,6 +267,7 @@ export const mergeGuestCartIntoUserCart = async () => {
   }
 
   clearGuestCart()
+  saveCurrentCartIdForUser(getCartId())
 
   return {
     mergedItemCount: guestItems.length,
@@ -239,10 +275,18 @@ export const mergeGuestCartIntoUserCart = async () => {
 }
 
 export const getCart = (cartId = getCartId()) =>
-  authStore.isLoggedIn ? getServerCart(cartId) : getGuestCart()
+  authStore.isLoggedIn
+    ? getServerCart(cartId).then((response) => {
+        setCurrentCartIdForUser(response.data?.cartId || cartId)
+        return response
+      })
+    : getGuestCart()
 
 export const addItemToCart = (productId, quantity = 1, cartId = getCartId()) =>
-  addServerItemToCart(productId, quantity, cartId)
+  addServerItemToCart(productId, quantity, cartId).then((response) => {
+    setCurrentCartIdForUser(response.data?.cartId || cartId)
+    return response
+  })
 
 export const updateCartItemQuantity = (productId, quantity, cartId = getCartId()) =>
   authStore.isLoggedIn

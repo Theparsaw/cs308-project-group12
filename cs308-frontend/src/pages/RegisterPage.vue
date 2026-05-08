@@ -82,7 +82,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerUser } from '../api/authApi'
-import { getCart, getGuestCart, mergeGuestCartIntoUserCart, resetCartId } from '../api/cartApi'
+import { activateUserCartId, getCart, getGuestCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
 import { authStore } from '../store/auth'
 import { cartStore } from '../store/cart'
 
@@ -145,7 +145,7 @@ const handleRegister = async () => {
 
     // Save the token and user info in the auth store
     authStore.setAuth(res.data.token, res.data.user)
-    resetCartId()
+    activateUserCartId()
 
     try {
       await mergeGuestCartIntoUserCart()

@@ -60,7 +60,11 @@ const findOrCreateCart = async (cartId, userId) => {
 
 const getCart = asyncHandler(async (req, res) => {
   const { cartId } = req.params;
-  const cart = await Cart.findOne({ cartId });
+  let cart = await Cart.findOne({ cartId });
+
+  if (!cart) {
+    cart = await Cart.findOne({ userId: req.user.id }).sort({ updatedAt: -1 });
+  }
 
   if (!cart) {
     return res.status(200).json(getEmptyCartPayload(cartId));
