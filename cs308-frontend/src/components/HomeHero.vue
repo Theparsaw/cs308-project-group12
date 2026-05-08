@@ -1,6 +1,6 @@
 <template>
-  <section class="relative overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#fff7ed_24%,#0c0a09_64%,#0c0a09_100%)]">
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.18),transparent_24%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.10),transparent_22%),radial-gradient(circle_at_bottom_center,rgba(12,10,9,0.12),transparent_30%)]" />
+  <section class="relative overflow-hidden bg-slate-50">
+    <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,249,0.96)_52%,rgba(226,232,240,0.88)_100%)]" />
     <div class="relative mx-auto max-w-7xl px-4 py-7 md:px-6 lg:py-10">
       <div
         ref="heroPanelRef"
