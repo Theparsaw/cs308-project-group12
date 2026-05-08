@@ -1,18 +1,18 @@
 <template>
-  <section class="relative overflow-hidden bg-slate-50">
+  <section class="relative min-h-[calc(100vh-5rem)] overflow-hidden bg-slate-50">
     <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(241,245,249,0.96)_52%,rgba(226,232,240,0.88)_100%)]" />
     <div class="relative mx-auto max-w-7xl px-4 py-7 md:px-6 lg:py-10">
       <div
         ref="heroPanelRef"
-        class="group relative min-h-[34rem] overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,#292524_0%,#1c1917_42%,#7c2d12_100%)] shadow-2xl transition duration-150 md:min-h-[37rem]"
+        class="group relative min-h-[34rem] overflow-hidden rounded-[2rem] border border-white/18 bg-[linear-gradient(135deg,#1e1b4b_0%,#4338ca_52%,#c2410c_100%)] shadow-2xl transition duration-150 md:min-h-[37rem]"
         :style="heroPanelStyle"
         @mousemove="updateHeroGlow"
         @mouseleave="resetHeroGlow"
       >
-        <div class="absolute -inset-6 rounded-[2.5rem] bg-orange-500/18 blur-3xl" />
-        <div class="absolute -left-16 top-10 h-72 w-72 rounded-full bg-amber-300/12 blur-3xl" />
-        <div class="absolute bottom-0 right-0 h-[26rem] w-[26rem] rounded-full bg-orange-500/16 blur-3xl" />
-        <div class="absolute left-1/3 top-1/4 h-80 w-80 rounded-full bg-stone-100/6 blur-3xl" />
+        <div class="absolute -inset-6 rounded-[2.5rem] bg-orange-300/14 blur-3xl" />
+        <div class="absolute -left-16 top-10 h-72 w-72 rounded-full bg-indigo-200/16 blur-3xl" />
+        <div class="absolute bottom-0 right-0 h-[26rem] w-[26rem] rounded-full bg-amber-200/16 blur-3xl" />
+        <div class="absolute left-1/3 top-1/4 h-80 w-80 rounded-full bg-white/7 blur-3xl" />
 
         <div
           v-for="(slide, index) in slides"
@@ -20,7 +20,7 @@
           class="absolute inset-0 overflow-hidden rounded-[inherit] transition-opacity duration-500 [backface-visibility:hidden] [transform:translateZ(0)]"
           :class="index === currentSlideIndex ? 'opacity-100' : 'opacity-0'"
         >
-          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(12,10,9,0.84)_0%,rgba(28,25,23,0.62)_45%,rgba(12,10,9,0.28)_100%)]" />
+          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(30,27,75,0.86)_0%,rgba(67,56,202,0.62)_45%,rgba(194,65,12,0.26)_100%)]" />
           <div class="absolute inset-y-6 right-4 w-full overflow-hidden rounded-[1.75rem] [backface-visibility:hidden] [transform:translateZ(0)] md:inset-y-8 md:right-8 md:w-[46%] lg:inset-y-10 lg:right-10 lg:w-[42%]">
             <img
               :src="slide.image"
@@ -28,14 +28,14 @@
               class="h-full w-full object-contain object-center"
             >
           </div>
-          <div class="absolute inset-0 bg-[radial-gradient(circle_at_78%_35%,rgba(251,146,60,0.28),transparent_24%)]" />
+          <div class="absolute inset-0 bg-[radial-gradient(circle_at_78%_35%,rgba(251,191,36,0.22),transparent_24%)]" />
         </div>
 
         <div
           class="pointer-events-none absolute inset-0 transition duration-200"
           :style="heroGlowStyle"
         />
-        <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(251,146,60,0.16),transparent_34%,rgba(255,255,255,0.05)_60%,rgba(251,146,60,0.12)_100%)]" />
+        <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(199,210,254,0.16),transparent_34%,rgba(255,255,255,0.06)_60%,rgba(251,191,36,0.14)_100%)]" />
 
         <div class="relative z-10 flex min-h-[34rem] flex-col p-7 md:min-h-[37rem] md:p-8 lg:p-10">
           <div class="flex max-w-2xl flex-1 flex-col">

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-80px)] bg-gray-50">
+  <div class="min-h-[calc(100vh-80px)] bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#fff7ed_100%)]">
     <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
       <aside class="bg-white border border-gray-200 rounded-3xl p-4 h-fit lg:sticky lg:top-24">
         <div class="mb-6">

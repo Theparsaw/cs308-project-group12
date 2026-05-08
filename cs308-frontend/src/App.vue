@@ -1,14 +1,14 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <header class="bg-white border-b sticky top-0 z-50">
+  <div class="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_34%,#fef3c7_100%)]">
+    <header class="sticky top-0 z-50 border-b border-orange-100/70 bg-[linear-gradient(90deg,rgba(255,247,237,0.96)_0%,rgba(238,242,255,0.96)_54%,rgba(254,243,199,0.94)_100%)] shadow-lg shadow-slate-900/10 backdrop-blur">
       <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-        <router-link to="/" class="text-2xl font-bold text-orange-500 shrink-0">
+        <router-link to="/" class="text-2xl font-bold text-orange-600 shrink-0">
           CS308 Store
         </router-link>
 
         <div class="flex-1">
           <form @submit.prevent="submitSearch">
-            <div class="relative flex items-center border border-orange-300 rounded-full focus-within:border-orange-500 bg-white overflow-hidden transition">
+            <div class="relative flex items-center overflow-hidden rounded-full border border-orange-200 bg-white/88 shadow-sm transition focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-200">
               <input
                 v-model="searchInput"
                 type="text"
@@ -19,7 +19,7 @@
                 <select
                   :value="activeSort"
                   @change="e => setSort(e.target.value)"
-                  class="text-sm text-gray-600 bg-transparent pl-3 pr-7 py-2.5 outline-none cursor-pointer appearance-none"
+                  class="text-sm text-slate-700 bg-transparent pl-3 pr-7 py-2.5 outline-none cursor-pointer appearance-none"
                   style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23f97316%22 stroke-width=%222.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 10px center;"
                 >
                   <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
@@ -34,12 +34,12 @@
         <div class="flex items-center gap-3 shrink-0">
           <router-link
             to="/cart"
-            class="relative flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
+            class="relative flex items-center gap-2 px-4 py-2.5 rounded-xl border border-orange-200 bg-white/72 text-slate-800 backdrop-blur hover:border-orange-300 hover:bg-white/90 transition"
           >
           
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-700"
+              class="w-5 h-5 text-slate-700"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -51,7 +51,7 @@
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1 5h12m-9 0a1 1 0 100 2 1 1 0 000-2zm8 0a1 1 0 100 2 1 1 0 000-2z"
               />
             </svg>
-            <span class="text-sm font-medium text-gray-800">Cart</span>
+            <span class="text-sm font-medium text-slate-800">Cart</span>
             <span
               v-if="cartStore.totalItems > 0"
               class="absolute -right-2 -top-2 inline-flex min-w-6 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-xs font-semibold text-white"
@@ -62,7 +62,7 @@
           <router-link
             v-if="authStore.isLoggedIn && authStore.role === 'customer'"
             to="/notifications"
-            class="relative flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 hover:shadow-sm hover:border-gray-400 transition"
+            class="relative flex items-center justify-center rounded-xl border border-orange-200 bg-white/72 px-4 py-2.5 text-slate-800 backdrop-blur hover:border-orange-300 hover:bg-white/90 transition"
           >
             <span class="text-lg">🔔</span>
 
@@ -77,11 +77,11 @@
           <router-link
             v-if="!authStore.isLoggedIn"
             to="/login"
-            class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
+            class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-orange-200 bg-white/72 text-slate-800 backdrop-blur hover:border-orange-300 hover:bg-white/90 transition"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-700"
+              class="w-5 h-5 text-slate-700"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -93,7 +93,7 @@
                 d="M15.75 6.75a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 1115 0"
               />
             </svg>
-            <span class="text-sm font-medium text-gray-800">Login</span>
+            <span class="text-sm font-medium text-slate-800">Login</span>
           </router-link>
 
           <template v-else>
@@ -104,7 +104,7 @@
               <div class="group relative">
                 <router-link
                   :to="{ path: '/profile', query: { tab: 'wishlist' } }"
-                  class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 shadow-sm transition hover:border-orange-400 hover:text-orange-500"
+                  class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-orange-200 bg-white/72 text-slate-700 shadow-sm backdrop-blur transition hover:border-orange-300 hover:bg-white/90 hover:text-orange-500"
                   aria-label="Open wishlist"
                   title="Open wishlist"
                 >
@@ -182,7 +182,7 @@
 
             <router-link
               to="/profile"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition"
+              class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-orange-200 bg-white/72 text-slate-800 backdrop-blur hover:border-orange-300 hover:bg-white/90 transition"
             >
               <img
                 v-if="authStore.user?.profileImage"
@@ -196,17 +196,17 @@
               >
                 {{ authStore.user?.name?.charAt(0)?.toUpperCase() }}
               </div>
-              <span class="text-sm font-medium text-gray-800">{{ authStore.user?.name }}</span>
+              <span class="text-sm font-medium text-slate-800">{{ authStore.user?.name }}</span>
             </router-link>
 
             <button
               type="button"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:shadow-sm hover:border-gray-400 transition cursor-pointer"
+              class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-orange-200 bg-white/72 text-slate-800 backdrop-blur hover:border-orange-300 hover:bg-white/90 transition cursor-pointer"
               @click="handleLogout"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-700"
+                class="w-5 h-5 text-slate-700"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -218,7 +218,7 @@
                   d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m-3-3h8.25m0 0l-3-3m3 3l-3 3"
                 />
               </svg>
-              <span class="text-sm font-medium text-gray-800">Logout</span>
+              <span class="text-sm font-medium text-slate-800">Logout</span>
             </button>
           </template>
 

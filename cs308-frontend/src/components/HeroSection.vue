@@ -1,15 +1,15 @@
 <template>
   <div
     ref="sectionRef"
-    class="relative w-full overflow-hidden border-t border-slate-800 bg-slate-950"
+    class="relative w-full overflow-hidden border-t border-orange-100/70 bg-[linear-gradient(135deg,#1e1b4b_0%,#4338ca_52%,#c2410c_100%)]"
     style="min-height: 36rem;"
     @mousemove="onMove"
     @mouseleave="onLeave"
   >
     <canvas ref="canvasRef" class="absolute inset-0 w-full h-full" />
 
-    <div class="absolute inset-0 bg-slate-950/55" />
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,146,60,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.22),transparent_30%)]" />
+    <div class="absolute inset-0 bg-indigo-950/38" />
+    <div class="absolute inset-0 bg-[linear-gradient(135deg,rgba(199,210,254,0.16),transparent_34%,rgba(255,255,255,0.06)_60%,rgba(251,191,36,0.14)_100%)]" />
 
     <div class="relative z-10 mx-auto flex min-h-[36rem] max-w-7xl flex-col justify-between px-4 py-10 md:px-6 lg:px-8">
       <div class="grid gap-8 pt-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
@@ -26,7 +26,7 @@
           </p>
         </div>
 
-        <div class="mt-6 rounded-[2rem] border border-white/12 bg-black/20 p-5 backdrop-blur-md lg:mt-16">
+        <div class="mt-6 rounded-[2rem] border border-white/18 bg-white/12 p-5 shadow-2xl shadow-indigo-950/20 backdrop-blur-md lg:mt-16">
           <h3 class="mb-2 text-lg font-semibold text-white">Contact support</h3>
           <p class="mb-5 max-w-md text-sm text-slate-200">
             Our team is available for product questions, returns, account issues, and warranty support.
@@ -34,13 +34,13 @@
           <div class="grid gap-3 sm:grid-cols-2">
             <a
               href="mailto:support@cs308store.com"
-              class="rounded-2xl border border-white/12 bg-slate-900/70 px-4 py-3 text-sm text-white transition hover:border-orange-300/60"
+              class="rounded-2xl border border-white/18 bg-white/12 px-4 py-3 text-sm text-white transition hover:border-amber-200/70 hover:bg-white/18"
             >
               support@cs308store.com
             </a>
             <a
               href="tel:+900000000000"
-              class="rounded-2xl border border-white/12 bg-slate-900/70 px-4 py-3 text-sm text-white transition hover:border-orange-300/60"
+              class="rounded-2xl border border-white/18 bg-white/12 px-4 py-3 text-sm text-white transition hover:border-amber-200/70 hover:bg-white/18"
             >
               +90 (000) 000 00 00
             </a>
@@ -49,15 +49,15 @@
       </div>
 
       <div class="grid gap-4 pt-10 md:grid-cols-3">
-        <div class="rounded-[1.5rem] border border-white/12 bg-white/8 p-4 backdrop-blur-sm">
+        <div class="rounded-[1.5rem] border border-white/18 bg-white/12 p-4 backdrop-blur-sm">
           <p class="mb-1 text-xs uppercase tracking-[0.3em] text-orange-200">Help desk</p>
           <p class="text-sm text-white">Order updates, refund questions, and warranty support.</p>
         </div>
-        <div class="rounded-[1.5rem] border border-white/12 bg-white/8 p-4 backdrop-blur-sm">
+        <div class="rounded-[1.5rem] border border-white/18 bg-white/12 p-4 backdrop-blur-sm">
           <p class="mb-1 text-xs uppercase tracking-[0.3em] text-orange-200">Business</p>
           <p class="text-sm text-white">Bulk orders, reseller contact, and collaboration requests.</p>
         </div>
-        <div class="rounded-[1.5rem] border border-white/12 bg-white/8 p-4 backdrop-blur-sm">
+        <div class="rounded-[1.5rem] border border-white/18 bg-white/12 p-4 backdrop-blur-sm">
           <p class="mb-1 text-xs uppercase tracking-[0.3em] text-orange-200">Availability</p>
           <p class="text-sm text-white">Responsive support flow with a live, interactive footer backdrop.</p>
         </div>
@@ -87,7 +87,7 @@ class Particle {
     this.vy = (Math.random() - 0.5) * 0.6
     this.r = Math.random() * 2.2 + 0.8
     this.opacity = Math.random() * 0.5 + 0.5
-    const palette = ['255,102,0', '255,145,0', '255,175,50', '230,75,0', '255,200,80']
+    const palette = ['199,210,254', '165,180,252', '251,191,36', '251,146,60', '255,237,213']
     this.color = palette[Math.floor(Math.random() * palette.length)]
   }
 

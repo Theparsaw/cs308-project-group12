@@ -1,10 +1,10 @@
 <template>
-  <section class="border-b border-stone-200 bg-white">
+  <section class="border-b border-orange-100 bg-[linear-gradient(90deg,#f8fafc_0%,#fff7ed_46%,#ecfeff_100%)]">
     <div class="mx-auto grid max-w-7xl gap-4 px-4 py-6 md:grid-cols-2 md:px-6 lg:grid-cols-4">
       <article
         v-for="item in trustItems"
         :key="item.title"
-        class="flex items-center gap-4 rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4"
+        class="flex items-center gap-4 rounded-3xl border border-white/70 bg-white/72 px-5 py-4 shadow-sm backdrop-blur"
       >
         <div
           class="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600"
