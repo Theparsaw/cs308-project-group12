@@ -6,6 +6,9 @@
 
       <!-- Show error message if login fails -->
       <p v-if="error" class="text-red-500 text-sm mb-4 text-center">{{ error }}</p>
+      <p v-if="registrationMessage" class="text-green-600 text-sm mb-4 text-center">
+        {{ registrationMessage }}
+      </p>
 
       <form @submit.prevent="handleLogin">
 
@@ -56,7 +59,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { loginUser } from '../api/authApi'
 import { activateUserCartId, getCart, getGuestCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
 import { authStore } from '../store/auth'
@@ -66,6 +69,7 @@ const CART_MERGE_ERROR_KEY = 'cart-merge-error'
 
 // Router lets us redirect the user after login
 const router = useRouter()
+const route = useRoute()
 
 // Form fields — v-model connects these to the input fields above
 const email = ref('')
@@ -74,6 +78,9 @@ const password = ref('')
 // State for loading spinner and error message
 const loading = ref(false)
 const error = ref('')
+const registrationMessage = ref(
+  route.query.registered === '1' ? 'Account created. Please log in to continue.' : ''
+)
 
 const syncCartTotalItems = async () => {
   try {
@@ -91,6 +98,7 @@ const hasGuestCartItems = async () => {
 
 const handleLogin = async () => {
   error.value = ''
+  registrationMessage.value = ''
   loading.value = true
 
   try {

@@ -167,12 +167,14 @@
         {{ reviewMessage }}
       </div>
 
-      <section v-if="!ownApprovedReview || isEditingReview" class="bg-white border rounded-xl p-8 shadow-sm">
+      <section v-if="canShowReviewForm" class="bg-white border rounded-xl p-8 shadow-sm">
         <div class="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 class="text-2xl font-semibold text-gray-900">{{ isEditingReview ? 'Edit Your Review' : 'Write a Review' }}</h2>
+            <h2 class="text-2xl font-semibold text-gray-900">{{ reviewFormTitle }}</h2>
             <p class="text-sm text-gray-500 mt-1" v-if="authStore.isLoggedIn">
               <span v-if="isEditingReview">Rating-only edits go live immediately. Comment edits require product manager approval.</span>
+              <span v-else-if="canAddCommentToOwnRating">Your rating is already public. Add a comment and it will appear after product manager approval.</span>
+              <span v-else-if="ownReviewHasPendingComment">Your comment is waiting for product manager approval.</span>
               <span v-else>You can review this product only after delivery. Ratings without comments go live immediately; comments require approval.</span>
             </p>
             <p class="text-sm text-gray-500 mt-1" v-else>
@@ -233,9 +235,11 @@
             <button
               type="submit"
               class="bg-slate-900 text-white px-5 py-3 rounded-lg font-semibold hover:bg-slate-800 disabled:bg-slate-400"
-              :disabled="submittingReview || !authStore.isLoggedIn"
+              :disabled="submittingReview || !authStore.isLoggedIn || ownReviewHasPendingComment"
             >
               <span v-if="submittingReview">{{ isEditingReview ? 'Updating...' : 'Submitting...' }}</span>
+              <span v-else-if="canAddCommentToOwnRating">Submit Comment</span>
+              <span v-else-if="ownReviewHasPendingComment">Comment Pending Approval</span>
               <span v-else>{{ isEditingReview ? 'Update Review' : 'Submit Review' }}</span>
             </button>
             <button
@@ -386,6 +390,35 @@ const isOwnReview = (review) =>
   authStore.isLoggedIn && currentUserId.value && String(review.userId) === currentUserId.value
 
 const ownApprovedReview = computed(() => reviews.value.find((review) => isOwnReview(review)))
+const ownReviewHasApprovedComment = computed(() => Boolean(ownApprovedReview.value?.comment?.trim()))
+const ownReviewHasPendingComment = computed(() => ownApprovedReview.value?.commentStatus === 'pending')
+const canAddCommentToOwnRating = computed(() =>
+  Boolean(ownApprovedReview.value) &&
+  !ownReviewHasApprovedComment.value &&
+  !ownReviewHasPendingComment.value &&
+  !isEditingReview.value
+)
+const canShowReviewForm = computed(() =>
+  !ownApprovedReview.value ||
+  isEditingReview.value ||
+  canAddCommentToOwnRating.value ||
+  ownReviewHasPendingComment.value
+)
+const reviewFormTitle = computed(() => {
+  if (isEditingReview.value) return 'Edit Your Review'
+  if (canAddCommentToOwnRating.value || ownReviewHasPendingComment.value) return 'Add a Comment'
+  return 'Write a Review'
+})
+
+const syncRatingOnlyReviewForm = () => {
+  if (
+    ownApprovedReview.value &&
+    !isEditingReview.value &&
+    !reviewForm.rating
+  ) {
+    reviewForm.rating = String(ownApprovedReview.value.rating)
+  }
+}
 
 const startReviewEdit = (review) => {
   editingReviewId.value = review._id
@@ -435,6 +468,7 @@ const loadReviews = async () => {
   try {
     const res = await getApprovedReviewsByProductId(route.params.id)
     reviews.value = res.data?.data || []
+    syncRatingOnlyReviewForm()
   } catch (err) {
     reviewsError.value = err?.response?.data?.message || 'Failed to load reviews.'
     console.error(err)
@@ -504,8 +538,14 @@ const handleReviewSubmit = async () => {
       comment: reviewForm.comment.trim(),
     }
 
-    const res = isEditingReview.value
-      ? await updateReview(editingReviewId.value, {
+    const reviewToUpdateId = isEditingReview.value
+      ? editingReviewId.value
+      : canAddCommentToOwnRating.value
+        ? ownApprovedReview.value?._id
+        : ''
+
+    const res = reviewToUpdateId
+      ? await updateReview(reviewToUpdateId, {
           rating: payload.rating,
           comment: payload.comment,
         })

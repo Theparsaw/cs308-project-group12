@@ -82,11 +82,6 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { registerUser } from '../api/authApi'
-import { activateUserCartId, getCart, getGuestCart, mergeGuestCartIntoUserCart } from '../api/cartApi'
-import { authStore } from '../store/auth'
-import { cartStore } from '../store/cart'
-
-const CART_MERGE_ERROR_KEY = 'cart-merge-error'
 
 // Router lets us redirect the user after registration
 const router = useRouter()
@@ -100,20 +95,6 @@ const confirmPassword = ref('')
 // State for loading and error
 const loading = ref(false)
 const error = ref('')
-
-const syncCartTotalItems = async () => {
-  try {
-    const cartRes = await getCart()
-    cartStore.setTotalItems(cartRes.data?.totalItems)
-  } catch {
-    cartStore.clear()
-  }
-}
-
-const hasGuestCartItems = async () => {
-  const guestCartRes = await getGuestCart()
-  return Number(guestCartRes.data?.totalItems || 0) > 0
-}
 
 const handleRegister = async () => {
   // Clear any previous error
@@ -134,34 +115,17 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
-    const shouldOpenCartAfterRegister = await hasGuestCartItems()
-
     // Send name, email, password to the backend
-    const res = await registerUser({
+    await registerUser({
       name: name.value,
       email: email.value,
       password: password.value,
     })
 
-    // Save the token and user info in the auth store
-    authStore.setAuth(res.data.token, res.data.user)
-    activateUserCartId()
-
-    try {
-      await mergeGuestCartIntoUserCart()
-      await syncCartTotalItems()
-    } catch (mergeError) {
-      const message =
-        mergeError?.response?.data?.message || 'Account created, but some cart items could not be restored.'
-
-      localStorage.setItem(CART_MERGE_ERROR_KEY, message)
-      await syncCartTotalItems()
-
-      router.push('/cart')
-      return
-    }
-
-    router.push(shouldOpenCartAfterRegister ? '/cart' : '/')
+    router.push({
+      path: '/login',
+      query: { registered: '1' },
+    })
 
   } catch (err) {
     // Show the error message from the backend

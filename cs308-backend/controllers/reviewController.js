@@ -183,6 +183,7 @@ const getApprovedReviewsForProduct = asyncHandler(async (req, res) => {
     reviewerName: namesById[review.userId] || "Anonymous User",
     rating: review.rating,
     comment: review.comment,
+    commentStatus: review.commentStatus,
     status: review.status,
     createdAt: review.createdAt,
     updatedAt: review.updatedAt,

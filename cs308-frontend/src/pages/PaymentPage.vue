@@ -22,22 +22,30 @@
       <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="text-xl font-semibold text-slate-900 mb-4">Card Information</h2>
 
-        <form class="space-y-4" @submit.prevent="handleSubmit">
+        <form class="space-y-4" autocomplete="on" @submit.prevent="handleSubmit">
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Cardholder Name</label>
+            <label for="card-holder" class="block text-sm font-medium text-slate-700 mb-1">Cardholder Name</label>
             <input
+              id="card-holder"
+              name="cc-name"
               v-model="form.cardHolder"
               type="text"
+              autocomplete="cc-name"
               class="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
               placeholder="John Doe"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Card Number</label>
+            <label for="card-number" class="block text-sm font-medium text-slate-700 mb-1">Card Number</label>
             <input
+              id="card-number"
+              name="cc-number"
               v-model="form.cardNumber"
               type="text"
+              inputmode="numeric"
+              pattern="[0-9 ]*"
+              autocomplete="cc-number"
               maxlength="19"
               class="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
               placeholder="1234 5678 9012 3456"
@@ -46,12 +54,15 @@
 
           <div class="grid gap-4 sm:grid-cols-3">
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Expiry Month</label>
+              <label for="expiry-month" class="block text-sm font-medium text-slate-700 mb-1">Expiry Month</label>
               <input
+                id="expiry-month"
+                name="cc-exp-month"
                 v-model="form.expiryMonth"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                autocomplete="cc-exp-month"
                 maxlength="2"
                 class="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
                 placeholder="MM"
@@ -59,12 +70,15 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Expiry Year</label>
+              <label for="expiry-year" class="block text-sm font-medium text-slate-700 mb-1">Expiry Year</label>
               <input
+                id="expiry-year"
+                name="cc-exp-year"
                 v-model="form.expiryYear"
                 type="text"
                 inputmode="numeric"
                 pattern="[0-9]*"
+                autocomplete="cc-exp-year"
                 maxlength="4"
                 class="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500"
                 placeholder="YYYY"
@@ -72,10 +86,15 @@
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">CVV</label>
+              <label for="card-cvv" class="block text-sm font-medium text-slate-700 mb-1">CVV</label>
              <input
+                id="card-cvv"
+                name="cc-csc"
                 v-model="form.cvv"
                 type="password"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="cc-csc"
                 maxlength="4"
                 class="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-slate-500 placeholder:text-slate-400"
                 placeholder="CVV"

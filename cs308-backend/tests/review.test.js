@@ -152,7 +152,7 @@ describe("Review validation and integration flow", () => {
     expect(res.body.review.status).toBe("approved");
   });
 
-  test("GET /api/reviews/product/:productId hides pending comment reviews", async () => {
+  test("GET /api/reviews/product/:productId hides fully pending comment reviews", async () => {
     const registerRes = await request(app).post("/api/auth/register").send({
       name: "Approved User",
       email: createEmail("approved"),
@@ -177,6 +177,61 @@ describe("Review validation and integration flow", () => {
 
     const pendingListRes = await request(app).get("/api/reviews/product/p002");
     expect(pendingListRes.statusCode).toBe(200);
-    expect(pendingListRes.body.data).toEqual([]);
+    expect(
+      pendingListRes.body.data.some(
+        (review) => String(review._id) === String(createRes.body.review._id)
+      )
+    ).toBe(false);
+  });
+
+  test("GET /api/reviews/product/:productId keeps a rating public while an added comment is pending", async () => {
+    const registerRes = await request(app).post("/api/auth/register").send({
+      name: "Rating Comment User",
+      email: createEmail("rating-comment"),
+      password: "Password123!",
+    });
+    createdUserIds.push(registerRes.body.user.id);
+    await createDeliveredPurchase(registerRes.body.user.id, "p001");
+
+    const token = registerRes.body.token;
+
+    const ratingRes = await request(app)
+      .post("/api/reviews")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        productId: "p001",
+        rating: 5,
+        comment: "",
+      });
+
+    expect(ratingRes.statusCode).toBe(201);
+    expect(ratingRes.body.review.status).toBe("approved");
+
+    const commentRes = await request(app)
+      .patch(`/api/reviews/${ratingRes.body.review._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        rating: 5,
+        comment: "Adding a comment after leaving stars only.",
+      });
+
+    expect(commentRes.statusCode).toBe(200);
+    expect(commentRes.body.review.status).toBe("approved");
+    expect(commentRes.body.review.commentStatus).toBe("pending");
+
+    const publicListRes = await request(app).get("/api/reviews/product/p001");
+    expect(publicListRes.statusCode).toBe(200);
+
+    const publicReview = publicListRes.body.data.find(
+      (review) => String(review._id) === String(ratingRes.body.review._id)
+    );
+
+    expect(publicReview).toEqual(
+      expect.objectContaining({
+        rating: 5,
+        comment: "",
+        commentStatus: "pending",
+      })
+    );
   });
 });
