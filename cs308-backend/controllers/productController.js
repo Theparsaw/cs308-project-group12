@@ -167,6 +167,7 @@ const buildRatingStages = () => [
         {
           $match: {
             status: "approved",
+            rating: { $gte: 1, $lte: 5 },
             $expr: {
               $eq: ["$productId", "$$currentProductId"],
             },

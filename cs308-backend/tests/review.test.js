@@ -152,6 +152,32 @@ describe("Review validation and integration flow", () => {
     expect(res.body.review.status).toBe("approved");
   });
 
+  test("POST /api/reviews allows comment-only reviews without a rating", async () => {
+    const registerRes = await request(app).post("/api/auth/register").send({
+      name: "Comment Only User",
+      email: createEmail("comment-only"),
+      password: "Password123!",
+    });
+    createdUserIds.push(registerRes.body.user.id);
+    await createDeliveredPurchase(registerRes.body.user.id, "p001");
+
+    const res = await request(app)
+      .post("/api/reviews")
+      .set("Authorization", `Bearer ${registerRes.body.token}`)
+      .send({
+        productId: "p001",
+        comment: "This written review should be accepted without stars.",
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.review.rating).toBeNull();
+    expect(res.body.review.comment).toBe(
+      "This written review should be accepted without stars."
+    );
+    expect(res.body.review.status).toBe("pending");
+    expect(res.body.review.commentStatus).toBe("pending");
+  });
+
   test("GET /api/reviews/product/:productId hides fully pending comment reviews", async () => {
     const registerRes = await request(app).post("/api/auth/register").send({
       name: "Approved User",

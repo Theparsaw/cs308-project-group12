@@ -209,8 +209,17 @@
             </div>
 
             <p class="mt-1 text-sm text-gray-500">
-              {{ reviewForm.rating ? `${reviewForm.rating} star${Number(reviewForm.rating) > 1 ? 's' : ''}` : 'Select a rating' }}
+              {{ reviewForm.rating ? `${reviewForm.rating} star${Number(reviewForm.rating) > 1 ? 's' : ''}` : 'No rating selected' }}
             </p>
+
+            <button
+              v-if="reviewForm.rating"
+              type="button"
+              @click="reviewForm.rating = ''"
+              class="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              Clear rating
+            </button>
 
             <p v-if="reviewErrors.rating" class="mt-1 text-sm text-red-600">
               {{ reviewErrors.rating }}
@@ -218,7 +227,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Comment (Optional)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Comment</label>
             <textarea
               v-model="reviewForm.comment"
               rows="5"
@@ -414,7 +423,8 @@ const syncRatingOnlyReviewForm = () => {
   if (
     ownApprovedReview.value &&
     !isEditingReview.value &&
-    !reviewForm.rating
+    !reviewForm.rating &&
+    ownApprovedReview.value.rating
   ) {
     reviewForm.rating = String(ownApprovedReview.value.rating)
   }
@@ -422,7 +432,7 @@ const syncRatingOnlyReviewForm = () => {
 
 const startReviewEdit = (review) => {
   editingReviewId.value = review._id
-  reviewForm.rating = String(review.rating)
+  reviewForm.rating = review.rating ? String(review.rating) : ''
   reviewForm.comment = review.comment || ''
   reviewMessage.value = ''
   reviewMessageTone.value = 'success'
@@ -437,7 +447,17 @@ const cancelReviewEdit = () => {
   reviewMessageTone.value = 'success'
 }
 
-const renderStars = (rating) => '★'.repeat(rating) + '☆'.repeat(5 - rating)
+const hasRating = (rating) => {
+  const ratingNumber = Number(rating)
+  return Number.isInteger(ratingNumber) && ratingNumber >= 1 && ratingNumber <= 5
+}
+
+const renderStars = (rating) => {
+  if (!hasRating(rating)) return 'No rating'
+
+  const ratingNumber = Number(rating)
+  return '★'.repeat(ratingNumber) + '☆'.repeat(5 - ratingNumber)
+}
 
 const renderAverageStars = (rating) => {
   const roundedRating = Math.round(Number(rating || 0))
@@ -534,8 +554,11 @@ const handleReviewSubmit = async () => {
   try {
     const payload = {
       productId: route.params.id,
-      rating: Number(reviewForm.rating),
       comment: reviewForm.comment.trim(),
+    }
+
+    if (reviewForm.rating) {
+      payload.rating = Number(reviewForm.rating)
     }
 
     const reviewToUpdateId = isEditingReview.value
@@ -544,11 +567,18 @@ const handleReviewSubmit = async () => {
         ? ownApprovedReview.value?._id
         : ''
 
+    const updatePayload = {
+      comment: payload.comment,
+    }
+
+    if (reviewForm.rating) {
+      updatePayload.rating = Number(reviewForm.rating)
+    } else if (isEditingReview.value) {
+      updatePayload.rating = null
+    }
+
     const res = reviewToUpdateId
-      ? await updateReview(reviewToUpdateId, {
-          rating: payload.rating,
-          comment: payload.comment,
-        })
+      ? await updateReview(reviewToUpdateId, updatePayload)
       : await createReview(payload)
 
     reviewMessage.value = res.data?.message || (isEditingReview.value ? 'Review updated successfully.' : 'Review submitted successfully.')

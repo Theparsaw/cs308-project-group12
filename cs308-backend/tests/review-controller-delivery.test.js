@@ -372,6 +372,52 @@ describe("createReview delivery requirement", () => {
     });
     expect(next).not.toHaveBeenCalled();
   });
+
+  test("creates a pending comment-only review after delivery", async () => {
+    const orderId = new mongoose.Types.ObjectId().toString();
+    const createdReview = {
+      _id: new mongoose.Types.ObjectId().toString(),
+      userId: "user-1",
+      productId: "p001",
+      rating: null,
+      comment: "This written review should be accepted without stars.",
+      status: "pending",
+    };
+
+    Delivery.distinct.mockResolvedValue([orderId]);
+    Delivery.find.mockReturnValue(createQuery([buildDelivery(orderId)]));
+    Order.exists
+      .mockResolvedValueOnce({ _id: orderId })
+      .mockResolvedValueOnce({ _id: orderId });
+    Review.create.mockResolvedValue(createdReview);
+
+    const req = {
+      user: { id: "user-1" },
+      body: {
+        productId: "p001",
+        comment: "This written review should be accepted without stars.",
+      },
+    };
+    const res = createRes();
+    const next = jest.fn();
+
+    await createReview(req, res, next);
+
+    expect(Review.create).toHaveBeenCalledWith({
+      userId: "user-1",
+      productId: "p001",
+      rating: null,
+      comment: "This written review should be accepted without stars.",
+      status: "pending",
+      commentStatus: "pending",
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Review submitted for approval.",
+      review: createdReview,
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateReview", () => {
@@ -504,6 +550,43 @@ describe("updateReview", () => {
       message: "Rating updated successfully.",
       review,
     });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test("allows clearing a rating while keeping a comment", async () => {
+    const reviewId = new mongoose.Types.ObjectId().toString();
+    const review = {
+      _id: reviewId,
+      userId: "user-1",
+      productId: "p001",
+      rating: 4,
+      comment: "Original review comment.",
+      pendingComment: "",
+      commentStatus: "approved",
+      status: "approved",
+      save: jest.fn().mockResolvedValue(true),
+    };
+
+    Review.findById.mockResolvedValue(review);
+
+    const req = {
+      user: { id: "user-1" },
+      params: { id: reviewId },
+      body: {
+        rating: null,
+        comment: "Original review comment.",
+      },
+    };
+    const res = createRes();
+    const next = jest.fn();
+
+    await updateReview(req, res, next);
+
+    expect(review.rating).toBeNull();
+    expect(review.comment).toBe("Original review comment.");
+    expect(review.status).toBe("approved");
+    expect(review.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(next).not.toHaveBeenCalled();
   });
 

@@ -9,14 +9,15 @@ const AppError = require("../utils/appError");
 const asyncHandler = require("../utils/asyncHandler");
 
 const isValidRating = (rating) => {
-  if (rating === undefined || rating === null) return false;
-
   const ratingNumber = Number(rating);
   if (!Number.isFinite(ratingNumber)) return false;
   if (!Number.isInteger(ratingNumber)) return false;
 
   return ratingNumber >= 1 && ratingNumber <= 5;
 };
+
+const hasRatingInput = (rating) =>
+  rating !== undefined && rating !== null && String(rating).trim() !== "";
 
 const normalizeComment = (comment) => String(comment ?? "").trim();
 
@@ -108,7 +109,9 @@ const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
     errors.productId = "productId is required";
   }
 
-  if (!isValidRating(rating)) {
+  const hasRating = hasRatingInput(rating);
+
+  if (hasRating && !isValidRating(rating)) {
     errors.rating = "rating must be an integer between 1 and 5";
   }
 
@@ -122,6 +125,10 @@ const validateReviewInput = ({ productId, rating, comment }, options = {}) => {
     } else if (/(.)\1{7,}/i.test(normalizedComment)) {
       errors.comment = "comment looks like spam";
     }
+  }
+
+  if (!hasRating && !normalizedComment) {
+    errors.general = "rating or comment is required";
   }
 
   return {
@@ -197,7 +204,7 @@ const getApprovedReviewsForProduct = asyncHandler(async (req, res) => {
 
 // POST /api/reviews
 // Expected body:
-// { productId: string, rating: 1-5 (int), comment?: string }
+// { productId: string, rating?: 1-5 (int), comment?: string }
 const createReview = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const { productId, rating, comment } = req.body;
@@ -217,7 +224,7 @@ const createReview = asyncHandler(async (req, res) => {
   }
 
   const trimmedProductId = String(productId).trim();
-  const ratingNumber = Number(rating);
+  const ratingNumber = hasRatingInput(rating) ? Number(rating) : null;
 
   const product = await Product.findOne({ productId: trimmedProductId });
   if (!product) {
@@ -326,7 +333,7 @@ const createReview = asyncHandler(async (req, res) => {
 
 // PATCH /api/reviews/:id
 // Expected body:
-// { rating: 1-5 (int), comment?: string }
+// { rating?: 1-5 (int), comment?: string }
 const updateReview = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const { id } = req.params;
@@ -366,7 +373,11 @@ const updateReview = asyncHandler(async (req, res) => {
   const isExistingPublicReview = review.status === "approved";
   const isCommentChanged = normalizedComment !== previousApprovedComment;
 
-  review.rating = Number(rating);
+  if (hasRatingInput(rating)) {
+    review.rating = Number(rating);
+  } else if (Object.prototype.hasOwnProperty.call(req.body, "rating")) {
+    review.rating = null;
+  }
 
   if (!normalizedComment) {
     review.comment = "";

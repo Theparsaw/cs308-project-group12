@@ -85,7 +85,7 @@
               <div class="flex items-center gap-2 mb-3">
                 <span class="text-sm font-medium text-gray-700">Rating:</span>
                 <span class="text-sm font-semibold text-orange-600">
-                  {{ review.rating }}/5
+                  {{ review.rating ? `${review.rating}/5` : 'No rating' }}
                 </span>
               </div>
 
