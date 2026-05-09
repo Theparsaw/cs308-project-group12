@@ -80,16 +80,30 @@ const approveReturnRequest = async (req, res) => {
 
   try {
     const returnReq = await ReturnRequest.findById(req.params.id).session(session);
-    if (!returnReq || returnReq.status !== "pending") return res.status(400).json({ message: "Invalid request" });
+    
+    // Prevent repeated stock restoration (Acceptance Criteria 3)
+    if (!returnReq || returnReq.status !== "pending") {
+      return res.status(400).json({ message: "Invalid request or already processed" });
+    }
 
     for (const item of returnReq.items) {
+      // 1. Add returned quantity back to stock (Acceptance Criteria 1)
       await Product.findOneAndUpdate(
         { productId: item.productId },
         { $inc: { quantityInStock: item.quantity } },
         { session }
       );
+
+      // 2. NEW: Update order item return status
+      // This reaches into the Order's item array and flags the specific product as "returned"
+      await Order.findOneAndUpdate(
+        { _id: returnReq.orderId, "items.productId": item.productId },
+        { $set: { "items.$.status": "returned" } }, 
+        { session }
+      );
     }
 
+    // Update return request status to approved and store date
     returnReq.status = "approved";
     returnReq.resolvedAt = new Date();
     returnReq.reviewedBy = req.user.id;
@@ -97,6 +111,7 @@ const approveReturnRequest = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+    
     return res.status(200).json({ success: true, data: returnReq });
   } catch (error) {
     await session.abortTransaction();
