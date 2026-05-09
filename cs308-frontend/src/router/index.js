@@ -23,6 +23,8 @@ import AdminStockPage from '../pages/admin/AdminStockPage.vue'
 import SalesDeliveriesPage from '../pages/admin/SalesDeliveriesPage.vue'
 import AdminCategoriesPage from '../pages/admin/AdminCategoriesPage.vue'
 import SalesPricingPage from '../pages/admin/SalesPricingPage.vue'
+import SalesInvoicesPage from '../pages/admin/SalesInvoicesPage.vue'
+import FinancialReportPage from '../pages/admin/FinancialReportPage.vue'
 
 const adminAreaMeta = {
   requiresAuth: true,
@@ -110,6 +112,16 @@ const routes = [
       {
         path: 'pricing',
         component: SalesPricingPage,
+        meta: salesManagerMeta,
+      },
+      {
+        path: 'invoices',
+        component: SalesInvoicesPage,
+        meta: salesManagerMeta,
+      },
+      {
+        path: 'financial-report',
+        component: FinancialReportPage,
         meta: salesManagerMeta,
       },
     ],

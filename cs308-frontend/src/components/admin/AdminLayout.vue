@@ -47,13 +47,13 @@ const panelKicker = computed(() => {
 
 const panelTitle = computed(() => {
   return userRole.value === 'sales_manager'
-    ? 'Pricing Management'
+    ? 'Sales Management'
     : 'Store Management'
 })
 
 const panelDescription = computed(() => {
   return userRole.value === 'sales_manager'
-    ? 'Manage product prices.'
+    ? 'Manage pricing, invoices, and financial reports.'
     : 'Manage products, categories, reviews, stock, and deliveries.'
 })
 
@@ -61,6 +61,8 @@ const navItems = computed(() => {
   if (userRole.value === 'sales_manager') {
     return [
       { label: 'Pricing', to: '/admin/pricing' },
+      { label: 'Invoices', to: '/admin/invoices' },
+      { label: 'Financial Report', to: '/admin/financial-report' },
     ]
   }
 
