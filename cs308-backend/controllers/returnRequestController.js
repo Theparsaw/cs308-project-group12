@@ -1,164 +1,110 @@
-const Delivery = require("../models/Delivery");
-const Order = require("../models/Order");
+const mongoose = require("mongoose");
 const ReturnRequest = require("../models/ReturnRequest");
-
-const RETURN_ELIGIBLE_DELIVERY_STATUSES = ["delivered"];
-
-const serializeReturnRequest = (request) => ({
-  id: request._id,
-  orderId: request.orderId,
-  items: request.items,
-  reason: request.reason,
-  refundAmount: request.refundAmount,
-  status: request.status,
-  resolvedAt: request.resolvedAt,
-  createdAt: request.createdAt,
-  updatedAt: request.updatedAt,
-});
+const Order = require("../models/Order");
+const Delivery = require("../models/Delivery");
+const Product = require("../models/Product");
 
 const getMyReturnRequests = async (req, res) => {
   try {
-    const requests = await ReturnRequest.find({ userId: req.user.id })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return res.status(200).json({
-      returnRequests: requests.map(serializeReturnRequest),
-    });
+    const returnRequests = await ReturnRequest.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean();
+    return res.status(200).json({ returnRequests });
   } catch (error) {
-    return res.status(500).json({
-      message: "Failed to fetch return requests",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
 const createReturnRequest = async (req, res) => {
   try {
-    const { orderId, reason } = req.body;
-    const requestedItems = Array.isArray(req.body.items)
-      ? req.body.items
-          .map((item) => ({
-            productId: String(item.productId || "").trim(),
-            quantity: Number(item.quantity),
-          }))
-          .filter((item) => item.productId)
-      : Array.isArray(req.body.itemProductIds)
-        ? req.body.itemProductIds
-            .map((productId) => ({
-              productId: String(productId).trim(),
-              quantity: 1,
-            }))
-            .filter((item) => item.productId)
-        : [];
+    const { orderId, items, reason } = req.body;
 
-    if (!orderId || !String(orderId).trim()) {
-      return res.status(400).json({ message: "orderId is required" });
+    const order = await Order.findOne({ _id: orderId, userId: req.user.id, status: "paid" }).lean();
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    const delivery = await Delivery.findOne({ orderId }).lean();
+    if (!delivery || delivery.status !== "delivered") return res.status(400).json({ message: "Not delivered yet" });
+
+    let refundAmount = 0;
+    const processedItems = [];
+
+    for (const requestedItem of items) {
+      const orderItem = order.items.find(i => i.productId === requestedItem.productId);
+      if (!orderItem) return res.status(400).json({ message: "Item not in order" });
+      
+      refundAmount += orderItem.unitPrice * requestedItem.quantity;
+      processedItems.push({ ...orderItem, quantity: requestedItem.quantity });
     }
 
-    if (!reason || !String(reason).trim()) {
-      return res.status(400).json({ message: "Return reason is required" });
-    }
-
-    if (String(reason).trim().length > 500) {
-      return res.status(400).json({ message: "Return reason cannot exceed 500 characters" });
-    }
-
-    if (requestedItems.length === 0) {
-      return res.status(400).json({ message: "At least one order item must be selected" });
-    }
-
-    if (requestedItems.some((item) => !Number.isInteger(item.quantity) || item.quantity < 1)) {
-      return res.status(400).json({ message: "Return quantity must be at least 1" });
-    }
-
-    const order = await Order.findOne({
-      _id: String(orderId).trim(),
-      userId: req.user.id,
-      status: "paid",
-    }).lean();
-
-    if (!order) {
-      return res.status(404).json({ message: "Eligible paid order not found" });
-    }
-
-    const delivery = await Delivery.findOne({ orderId: String(order._id) }).lean();
-
-    if (!delivery || !RETURN_ELIGIBLE_DELIVERY_STATUSES.includes(delivery.status)) {
-      return res.status(400).json({
-        message: "Returns can only be requested after delivery",
-      });
-    }
-
-    const quantityByProductId = requestedItems.reduce((acc, item) => {
-      acc[item.productId] = (acc[item.productId] || 0) + item.quantity;
-      return acc;
-    }, {});
-    const uniqueProductIds = Object.keys(quantityByProductId);
-    const selectedItems = order.items
-      .filter((item) => uniqueProductIds.includes(String(item.productId)))
-      .map((item) => ({
-        ...item,
-        quantity: quantityByProductId[String(item.productId)],
-      }));
-
-    if (selectedItems.length !== uniqueProductIds.length) {
-      return res.status(400).json({ message: "Selected return items are not part of this order" });
-    }
-
-    const invalidQuantityItem = selectedItems.find((selectedItem) => {
-      const orderedItem = order.items.find(
-        (item) => String(item.productId) === String(selectedItem.productId)
-      );
-      return selectedItem.quantity > Number(orderedItem?.quantity || 0);
+    const returnRequest = await ReturnRequest.create({
+      userId: req.user.id, orderId, items: processedItems, reason, refundAmount,
     });
 
-    if (invalidQuantityItem) {
-      return res.status(400).json({
-        message: "Return quantity cannot exceed the ordered quantity",
-      });
-    }
-
-    const existingRequest = await ReturnRequest.findOne({
-      userId: req.user.id,
-      orderId: String(order._id),
-    }).lean();
-
-    if (existingRequest) {
-      return res.status(409).json({ message: "A return request already exists for this order" });
-    }
-
-    const refundAmount = selectedItems.reduce(
-      (total, item) => total + Number(item.unitPrice || 0) * Number(item.quantity || 0),
-      0
-    );
-
-    const request = await ReturnRequest.create({
-      userId: req.user.id,
-      orderId: String(order._id),
-      items: selectedItems.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        unitPrice: item.unitPrice,
-        quantity: item.quantity,
-      })),
-      reason: String(reason).trim(),
-      refundAmount,
-    });
-
-    return res.status(201).json({
-      message: "Return request submitted successfully",
-      returnRequest: serializeReturnRequest(request),
-    });
+    return res.status(201).json(returnRequest);
   } catch (error) {
-    return res.status(500).json({
-      message: "Failed to submit return request",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+const getPendingReturnRequests = async (req, res) => {
+  try {
+    const pendingRequests = await ReturnRequest.find({ status: "pending" })
+      .populate("userId", "name email")
+      .sort({ createdAt: 1 }); 
+    return res.status(200).json({ success: true, count: pendingRequests.length, data: pendingRequests });
+  } catch (error) {
+    return res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+const rejectReturnRequest = async (req, res) => {
+  try {
+    const { managerNotes } = req.body;
+    const returnReq = await ReturnRequest.findById(req.params.id);
+
+    if (!returnReq || returnReq.status !== "pending") return res.status(400).json({ message: "Invalid request" });
+
+    returnReq.status = "rejected";
+    returnReq.managerNotes = managerNotes || "";
+    returnReq.resolvedAt = new Date();
+    returnReq.reviewedBy = req.user.id;
+    await returnReq.save();
+
+    return res.status(200).json({ success: true, data: returnReq });
+  } catch (error) {
+    return res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+const approveReturnRequest = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const returnReq = await ReturnRequest.findById(req.params.id).session(session);
+    if (!returnReq || returnReq.status !== "pending") return res.status(400).json({ message: "Invalid request" });
+
+    for (const item of returnReq.items) {
+      await Product.findOneAndUpdate(
+        { productId: item.productId },
+        { $inc: { quantityInStock: item.quantity } },
+        { session }
+      );
+    }
+
+    returnReq.status = "approved";
+    returnReq.resolvedAt = new Date();
+    returnReq.reviewedBy = req.user.id;
+    await returnReq.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+    return res.status(200).json({ success: true, data: returnReq });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
 module.exports = {
-  createReturnRequest,
-  getMyReturnRequests,
+  getMyReturnRequests, createReturnRequest, getPendingReturnRequests, rejectReturnRequest, approveReturnRequest,
 };
