@@ -120,6 +120,23 @@ const approveReturnRequest = async (req, res) => {
   }
 };
 
+const getReturnHistory = async (req, res) => {
+  try {
+    // Fetch all requests that are NO LONGER pending
+    const history = await ReturnRequest.find({ status: { $ne: "pending" } })
+      .populate("userId", "name email")
+      .sort({ resolvedAt: -1 }); // Newest first
+
+    return res.status(200).json({
+      success: true,
+      count: history.length,
+      data: history,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
 module.exports = {
-  getMyReturnRequests, createReturnRequest, getPendingReturnRequests, rejectReturnRequest, approveReturnRequest,
+  getMyReturnRequests, createReturnRequest, getPendingReturnRequests, rejectReturnRequest, approveReturnRequest, getReturnHistory,
 };

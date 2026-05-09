@@ -11,6 +11,7 @@ import CheckoutPage from '../pages/CheckoutPage.vue'
 import PaymentPage from '../pages/PaymentPage.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
 import NotificationsPage from '../pages/NotificationsPage.vue'
+import MyReturnsPage from '../pages/MyReturnsPage.vue'
 
 // Admin layout + pages
 import AdminLayout from '../components/admin/AdminLayout.vue'
@@ -52,10 +53,8 @@ const routes = [
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
   { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
-  {
-  path: "/notifications",
-  component: NotificationsPage,
-  },
+  { path: "/notifications", component: NotificationsPage, },
+  { path: '/my-returns', component: MyReturnsPage, meta: { requiresAuth: true } },
 
   {
     path: '/admin',
