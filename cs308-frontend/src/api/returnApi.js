@@ -11,3 +11,6 @@ export const submitReturnRequest = (payload) => api.post('/returns', payload, ge
 export const getPendingReturnRequests = () => api.get('/returns/pending', getAuthConfig())
 export const approveReturnRequest = (id) => api.patch(`/returns/${id}/approve`, {}, getAuthConfig())
 export const rejectReturnRequest = (id, managerNotes) => api.patch(`/returns/${id}/reject`, { managerNotes }, getAuthConfig())
+
+export const getReturnHistory = () => 
+  api.get('/returns/history', getAuthConfig())
