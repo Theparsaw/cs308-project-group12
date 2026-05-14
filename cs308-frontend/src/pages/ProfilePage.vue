@@ -362,7 +362,7 @@
                         {{ getReviewButtonLabel(order, item) }}
                       </button>
                       <button
-                        v-if="canRequestReturn(order)"
+                        v-if="canRequestReturn(order, item)"
                         type="button"
                         class="rounded-xl border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-50"
                         @click="startReturnRequest(order, item)"
@@ -438,7 +438,7 @@
                       :checked="isReturnItemSelected(item.productId)"
                       type="checkbox"
                       class="mt-1 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-                      :disabled="submittingReturn"
+                      :disabled="submittingReturn || isItemFullyReturned(order, item)"
                       @change="toggleReturnItem(item, $event.target.checked)"
                     />
                     <span class="min-w-0">
@@ -457,7 +457,7 @@
                       :id="`return-qty-${order.id}-${item.productId}`"
                       type="number"
                       min="1"
-                      :max="item.quantity"
+                      :max="getRemainingReturnQuantity(order, item)"
                       step="1"
                       :value="getReturnItemQuantity(item.productId)"
                       class="w-24 rounded-lg border border-orange-100 px-3 py-2 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
@@ -465,7 +465,7 @@
                       @input="updateReturnItemQuantity(item, $event.target.value)"
                       @blur="normalizeReturnItemQuantity(item)"
                     />
-                    <span class="text-sm text-gray-500">of {{ item.quantity }}</span>
+                    <span class="text-sm text-gray-500">of {{ getRemainingReturnQuantity(order, item) }}</span>
                   </div>
                 </div>
               </div>
@@ -664,6 +664,12 @@
             </div>
 
             <p class="mt-4 text-sm text-gray-600">{{ request.reason }}</p>
+            <p
+              v-if="request.status === 'rejected' && request.managerNotes"
+              class="mt-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              <span class="font-semibold">Rejection reason:</span> {{ request.managerNotes }}
+            </p>
           </article>
         </div>
       </div>
@@ -1120,21 +1126,29 @@ const canCancelOrder = (order) => {
   return order.status === 'paid' && order.deliveryStatus === 'processing'
 }
 
-const getReturnRequestForOrder = (orderId) => {
-  return returnRequests.value.find((request) => request.orderId === orderId)
+const getReturnRequestsForOrder = (orderId) => {
+  return returnRequests.value.filter((request) => request.orderId === orderId && request.status !== 'rejected')
 }
 
 const getReturnRequestForItem = (orderId, productId) => {
-  const request = getReturnRequestForOrder(orderId)
-  return request?.items?.find((item) => item.productId === productId)
+  return getReturnRequestsForOrder(orderId)
+    .flatMap((request) => request.items || [])
+    .find((item) => item.productId === productId)
 }
 
 const getReturnedQuantityForItem = (orderId, productId) => {
-  return Number(getReturnRequestForItem(orderId, productId)?.quantity || 0)
+  return getReturnRequestsForOrder(orderId)
+    .flatMap((request) => request.items || [])
+    .filter((item) => item.productId === productId)
+    .reduce((total, item) => total + Number(item.quantity || 0), 0)
+}
+
+const getRemainingReturnQuantity = (order, item) => {
+  return Math.max(0, Number(item.quantity || 0) - getReturnedQuantityForItem(order.id, item.productId))
 }
 
 const isItemFullyReturned = (order, item) => {
-  return getReturnedQuantityForItem(order.id, item.productId) >= Number(item.quantity || 0)
+  return getRemainingReturnQuantity(order, item) === 0
 }
 
 const canReviewItem = (order, item) => {
@@ -1146,11 +1160,11 @@ const getReviewButtonLabel = (order, item) => {
   return order.deliveryStatus === 'delivered' ? 'Leave Review' : 'Available after delivery'
 }
 
-const canRequestReturn = (order) => {
+const canRequestReturn = (order, item) => {
   return user.value.role === 'customer' &&
     order.status === 'paid' &&
     order.deliveryStatus === 'delivered' &&
-    !getReturnRequestForOrder(order.id)
+    getRemainingReturnQuantity(order, item) > 0
 }
 
 const startReturnRequest = (order, item) => {
@@ -1197,7 +1211,8 @@ const updateReturnItemQuantity = (item, value) => {
 
   if (value !== '') {
     const parsedQuantity = Number(value)
-    const maxQuantity = Number(item.quantity || 1)
+    const order = orders.value.find((candidateOrder) => candidateOrder.id === returnForm.value.orderId)
+    const maxQuantity = order ? getRemainingReturnQuantity(order, item) : Number(item.quantity || 1)
 
     if (!Number.isFinite(parsedQuantity)) {
       nextQuantity = ''
@@ -1218,12 +1233,14 @@ const updateReturnItemQuantity = (item, value) => {
 }
 
 const normalizeReturnItemQuantity = (item) => {
+  const order = orders.value.find((candidateOrder) => candidateOrder.id === returnForm.value.orderId)
   const selectedItem = returnForm.value.items.find(
     (returnItem) => returnItem.productId === item.productId
   )
   const parsedQuantity = Number(selectedItem?.quantity)
+  const maxQuantity = order ? getRemainingReturnQuantity(order, item) : Number(item.quantity || 1)
   const boundedQuantity = Math.min(
-    Number(item.quantity || 1),
+    maxQuantity,
     Math.max(1, Number.isInteger(parsedQuantity) ? parsedQuantity : 1)
   )
 
@@ -1257,9 +1274,10 @@ const handleSubmitReturnRequest = async (order) => {
   const invalidQuantityItem = returnForm.value.items.find((returnItem) => {
     const orderedItem = order.items.find((item) => item.productId === returnItem.productId)
     const quantity = Number(returnItem.quantity)
+    const maxQuantity = orderedItem ? getRemainingReturnQuantity(order, orderedItem) : 0
     return !Number.isInteger(quantity) ||
       quantity < 1 ||
-      quantity > Number(orderedItem?.quantity || 0)
+      quantity > maxQuantity
   })
 
   if (invalidQuantityItem) {

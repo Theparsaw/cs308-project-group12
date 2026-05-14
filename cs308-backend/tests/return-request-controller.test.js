@@ -46,6 +46,7 @@ const buildOrder = (overrides = {}) => ({
 describe("returnRequestController", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    ReturnRequest.find.mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
   });
 
   test("getMyReturnRequests returns requests for the authenticated customer", async () => {
@@ -106,7 +107,6 @@ describe("returnRequestController", () => {
 
     Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(order) });
     Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
-    ReturnRequest.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
     ReturnRequest.create.mockResolvedValue(createdRequest);
 
     const req = {
@@ -142,7 +142,6 @@ describe("returnRequestController", () => {
 
     Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(order) });
     Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
-    ReturnRequest.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
     ReturnRequest.create.mockResolvedValue({
       _id: "return-1",
       orderId: "order-1",
@@ -197,6 +196,75 @@ describe("returnRequestController", () => {
     expect(ReturnRequest.create).not.toHaveBeenCalled();
   });
 
+  test("createReturnRequest rejects non-positive quantities", async () => {
+    Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(buildOrder()) });
+    Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
+
+    const req = {
+      user: { id: "user-1" },
+      body: {
+        orderId: "order-1",
+        items: [{ productId: "p002", quantity: 0 }],
+        reason: "Invalid quantity",
+      },
+    };
+    const res = createRes();
+
+    await createReturnRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Return quantity must be a positive integer",
+    });
+    expect(ReturnRequest.create).not.toHaveBeenCalled();
+  });
+
+  test("createReturnRequest rejects decimal quantities", async () => {
+    Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(buildOrder()) });
+    Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
+
+    const req = {
+      user: { id: "user-1" },
+      body: {
+        orderId: "order-1",
+        items: [{ productId: "p002", quantity: 1.5 }],
+        reason: "Invalid quantity",
+      },
+    };
+    const res = createRes();
+
+    await createReturnRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Return quantity must be a positive integer",
+    });
+    expect(ReturnRequest.create).not.toHaveBeenCalled();
+  });
+
+  test("createReturnRequest rejects missing product IDs", async () => {
+    Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(buildOrder()) });
+    Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
+
+    const req = {
+      user: { id: "user-1" },
+      body: {
+        orderId: "order-1",
+        items: [{ quantity: 1 }],
+        reason: "Missing product",
+      },
+    };
+    const res = createRes();
+
+    await createReturnRequest(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Each return item must include a product ID",
+    });
+    expect(ReturnRequest.create).not.toHaveBeenCalled();
+  });
+
   test("createReturnRequest rejects non-delivered orders", async () => {
     Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(buildOrder()) });
     Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "processing" }) });
@@ -216,26 +284,73 @@ describe("returnRequestController", () => {
     expect(ReturnRequest.create).not.toHaveBeenCalled();
   });
 
-  test("createReturnRequest rejects duplicate requests for an order", async () => {
+  test("createReturnRequest rejects quantities that exceed remaining returnable quantity", async () => {
     Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(buildOrder()) });
     Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
-    ReturnRequest.findOne.mockReturnValue({
-      lean: jest.fn().mockResolvedValue({ _id: "return-1" }),
+    ReturnRequest.find.mockReturnValue({
+      lean: jest.fn().mockResolvedValue([
+        {
+          _id: "return-1",
+          orderId: "order-1",
+          status: "pending",
+          items: [{ productId: "p002", quantity: 1 }],
+        },
+      ]),
     });
 
     const req = {
       user: { id: "user-1" },
-      body: { orderId: "order-1", itemProductIds: ["p001"], reason: "Damaged" },
+      body: { orderId: "order-1", items: [{ productId: "p002", quantity: 2 }], reason: "Damaged" },
     };
     const res = createRes();
 
     await createReturnRequest(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      message: "A return request already exists for this order",
+      message: "Return quantity cannot exceed the remaining returnable quantity",
     });
     expect(ReturnRequest.create).not.toHaveBeenCalled();
+  });
+
+  test("createReturnRequest allows a different item from an order with an existing return", async () => {
+    const order = buildOrder();
+    Order.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(order) });
+    Delivery.findOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ status: "delivered" }) });
+    ReturnRequest.find.mockReturnValue({
+      lean: jest.fn().mockResolvedValue([
+        {
+          _id: "return-1",
+          orderId: "order-1",
+          status: "pending",
+          items: [{ productId: "p001", quantity: 1 }],
+        },
+      ]),
+    });
+    ReturnRequest.create.mockResolvedValue({
+      _id: "return-2",
+      orderId: "order-1",
+      items: [{ ...order.items[1], quantity: 1 }],
+      reason: "Second item issue",
+      refundAmount: 40,
+      status: "pending",
+    });
+
+    const req = {
+      user: { id: "user-1" },
+      body: { orderId: "order-1", items: [{ productId: "p002", quantity: 1 }], reason: "Second item issue" },
+    };
+    const res = createRes();
+
+    await createReturnRequest(req, res);
+
+    expect(ReturnRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [{ ...order.items[1], quantity: 1 }],
+        refundAmount: 40,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 
   test("createReturnRequest rejects items that are not in the order", async () => {

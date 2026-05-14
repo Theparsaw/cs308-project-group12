@@ -63,7 +63,7 @@ const navItems = computed(() => {
       { label: 'Pricing', to: '/admin/pricing' },
       { label: 'Invoices', to: '/admin/invoices' },
       { label: 'Financial Report', to: '/admin/financial-report' },
-      { label: 'Refunds', to: '/admin/refunds' },
+      { label: 'Returns', to: '/admin/returns' },
     ]
   }
 

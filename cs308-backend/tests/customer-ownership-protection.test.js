@@ -96,6 +96,7 @@ const createQuery = (data) => ({
 describe("Customer data ownership protection", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    ReturnRequest.find.mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
   });
 
   test("getMyReturnRequests only queries return requests owned by the authenticated customer", async () => {
@@ -122,7 +123,13 @@ describe("Customer data ownership protection", () => {
     expect(query.sort).toHaveBeenCalledWith({ createdAt: -1 });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      returnRequests,
+      returnRequests: [
+        {
+          id: "return-1",
+          orderId: "order-1",
+          status: "pending",
+        },
+      ],
     });
   });
 

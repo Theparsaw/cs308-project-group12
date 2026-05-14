@@ -19,6 +19,7 @@ router.use(authMiddleware); // All routes require login
 // Customer Routes
 // ==========================================
 router.get("/my-returns", authorize("customer"), getMyReturnRequests);
+router.get("/", authorize("customer"), getMyReturnRequests);
 router.post("/", authorize("customer"), createReturnRequest);
 
 // ==========================================

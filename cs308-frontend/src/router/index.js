@@ -115,8 +115,13 @@ const routes = [
         meta: salesManagerMeta,
       },
       {
-        path: 'refunds',
+        path: 'returns',
         component: AdminRefundsPage,
+        meta: salesManagerMeta,
+      },
+      {
+        path: 'refunds',
+        redirect: '/admin/returns',
         meta: salesManagerMeta,
       },
       {

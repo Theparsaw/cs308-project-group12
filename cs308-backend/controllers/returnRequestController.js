@@ -4,10 +4,53 @@ const Order = require("../models/Order");
 const Delivery = require("../models/Delivery");
 const Product = require("../models/Product");
 
+const normalizeRequestedReturnItems = (items, itemProductIds) => {
+  if (Array.isArray(items)) {
+    return items.map((item) => ({
+      productId: String(item?.productId || "").trim(),
+      quantity: item?.quantity,
+    }));
+  }
+
+  if (Array.isArray(itemProductIds)) {
+    return itemProductIds.map((productId) => ({
+      productId: String(productId || "").trim(),
+      quantity: 1,
+    }));
+  }
+
+  return [];
+};
+
+const serializeReturnRequest = (request) => {
+  const serialized = {
+    id: String(request._id),
+    orderId: request.orderId,
+    status: request.status,
+  };
+
+  if (request.items !== undefined) serialized.items = request.items;
+  if (request.reason !== undefined) serialized.reason = request.reason;
+  if (request.refundAmount !== undefined) serialized.refundAmount = request.refundAmount;
+  if (request.resolvedAt !== undefined) serialized.resolvedAt = request.resolvedAt;
+  if (request.createdAt !== undefined) serialized.createdAt = request.createdAt;
+  if (request.updatedAt !== undefined) serialized.updatedAt = request.updatedAt;
+  if (request.managerNotes !== undefined) serialized.managerNotes = request.managerNotes;
+  if (request.reviewedBy !== undefined) serialized.reviewedBy = request.reviewedBy;
+
+  return serialized;
+};
+
+const findExistingReturnRequests = async (userId, orderId) => {
+  const query = ReturnRequest.find({ userId, orderId });
+  if (!query) return null;
+  return typeof query.lean === "function" ? query.lean() : query;
+};
+
 const getMyReturnRequests = async (req, res) => {
   try {
     const returnRequests = await ReturnRequest.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean();
-    return res.status(200).json({ returnRequests });
+    return res.status(200).json({ returnRequests: returnRequests.map(serializeReturnRequest) });
   } catch (error) {
     return res.status(500).json({ message: "Server Error", error: error.message });
   }
@@ -15,27 +58,68 @@ const getMyReturnRequests = async (req, res) => {
 
 const createReturnRequest = async (req, res) => {
   try {
-    const { orderId, items, reason } = req.body;
+    const { orderId, items, itemProductIds, reason } = req.body;
+    const requestedItems = normalizeRequestedReturnItems(items, itemProductIds);
 
     const order = await Order.findOne({ _id: orderId, userId: req.user.id, status: "paid" }).lean();
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     const delivery = await Delivery.findOne({ orderId }).lean();
-    if (!delivery || delivery.status !== "delivered") return res.status(400).json({ message: "Not delivered yet" });
+    if (!delivery || delivery.status !== "delivered") {
+      return res.status(400).json({ message: "Returns can only be requested after delivery" });
+    }
+
+    if (requestedItems.length === 0) {
+      return res.status(400).json({ message: "Select at least one item to return" });
+    }
 
     let refundAmount = 0;
     const processedItems = [];
+    const seenProductIds = new Set();
+    const existingRequests = await findExistingReturnRequests(req.user.id, orderId) || [];
+    const returnedQuantityByProductId = existingRequests
+      .filter((request) => request.status !== "rejected")
+      .flatMap((request) => request.items || [])
+      .reduce((acc, item) => {
+        acc[item.productId] = (acc[item.productId] || 0) + Number(item.quantity || 0);
+        return acc;
+      }, {});
 
-    for (const requestedItem of items) {
-      const orderItem = order.items.find(i => i.productId === requestedItem.productId);
-      if (!orderItem) return res.status(400).json({ message: "Item not in order" });
+    for (const requestedItem of requestedItems) {
+      const requestedProductId = requestedItem.productId;
+      const requestedQuantity = Number(requestedItem.quantity);
+
+      if (!requestedProductId) {
+        return res.status(400).json({ message: "Each return item must include a product ID" });
+      }
+
+      if (seenProductIds.has(requestedProductId)) {
+        return res.status(400).json({ message: "Duplicate return items are not allowed" });
+      }
+      seenProductIds.add(requestedProductId);
+
+      if (!Number.isInteger(requestedQuantity) || requestedQuantity <= 0) {
+        return res.status(400).json({ message: "Return quantity must be a positive integer" });
+      }
+
+      const orderItem = order.items.find(i => String(i.productId) === requestedProductId);
+      if (!orderItem) return res.status(400).json({ message: "Selected return items are not part of this order" });
+
+      if (requestedQuantity > Number(orderItem.quantity)) {
+        return res.status(400).json({ message: "Return quantity cannot exceed the ordered quantity" });
+      }
+
+      const alreadyReturnedQuantity = returnedQuantityByProductId[requestedProductId] || 0;
+      if (alreadyReturnedQuantity + requestedQuantity > Number(orderItem.quantity)) {
+        return res.status(400).json({ message: "Return quantity cannot exceed the remaining returnable quantity" });
+      }
       
-      refundAmount += orderItem.unitPrice * requestedItem.quantity;
-      processedItems.push({ ...orderItem, quantity: requestedItem.quantity });
+      refundAmount += orderItem.unitPrice * requestedQuantity;
+      processedItems.push({ ...orderItem, quantity: requestedQuantity });
     }
 
     const returnRequest = await ReturnRequest.create({
-      userId: req.user.id, orderId, items: processedItems, reason, refundAmount,
+      userId: req.user.id, orderId, items: processedItems, reason: String(reason || "").trim(), refundAmount,
     });
 
     return res.status(201).json(returnRequest);
@@ -48,7 +132,7 @@ const getPendingReturnRequests = async (req, res) => {
   try {
     const pendingRequests = await ReturnRequest.find({ status: "pending" })
       .populate("userId", "name email")
-      .sort({ createdAt: 1 }); 
+      .sort({ createdAt: -1 }); 
     return res.status(200).json({ success: true, count: pendingRequests.length, data: pendingRequests });
   } catch (error) {
     return res.status(500).json({ message: "Server Error", error: error.message });

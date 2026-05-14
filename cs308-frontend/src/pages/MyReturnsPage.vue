@@ -8,7 +8,7 @@
     </div>
 
     <div v-else class="space-y-4">
-      <div v-for="req in requests" :key="req._id" class="bg-white p-5 rounded-lg shadow border border-gray-200">
+      <div v-for="req in requests" :key="req.id || req._id" class="bg-white p-5 rounded-lg shadow border border-gray-200">
         <div class="flex justify-between items-start mb-4">
           <div>
             <h3 class="font-semibold text-gray-800">Order ID: {{ req.orderId }}</h3>
@@ -38,7 +38,7 @@
           </div>
           <div class="text-right">
             <span class="text-sm text-gray-500 block">Refund Amount</span>
-            <span class="font-bold text-lg text-gray-900">${{ req.refundAmount.toFixed(2) }}</span>
+            <span class="font-bold text-lg text-gray-900">${{ Number(req.refundAmount || 0).toFixed(2) }}</span>
           </div>
         </div>
       </div>

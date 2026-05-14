@@ -62,6 +62,16 @@ const returnRequestSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    managerNotes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    reviewedBy: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     resolvedAt: {
       type: Date,
       default: null,
@@ -72,7 +82,6 @@ const returnRequestSchema = new mongoose.Schema(
   }
 );
 
-// Prevent duplicate return requests for the same order
-returnRequestSchema.index({ userId: 1, orderId: 1 }, { unique: true });
+returnRequestSchema.index({ userId: 1, orderId: 1 });
 
 module.exports = mongoose.model("ReturnRequest", returnRequestSchema);

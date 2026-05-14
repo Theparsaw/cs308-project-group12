@@ -1,6 +1,6 @@
 <template>
   <div class="p-6">
-    <h1 class="text-2xl font-bold mb-6 text-gray-800">Refund Requests</h1>
+    <h1 class="text-2xl font-bold mb-6 text-gray-800">Return Requests</h1>
 
     <div class="flex space-x-2 mb-6">
       <button 
@@ -13,7 +13,7 @@
         @click="currentTab = 'history'" 
         :class="currentTab === 'history' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'" 
         class="px-4 py-2 rounded font-medium transition-colors">
-        Refund History
+        Return History
       </button>
     </div>
 
@@ -69,7 +69,7 @@
 
     <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-96 shadow-xl">
-        <h3 class="text-lg font-bold mb-4">Reject Refund</h3>
+        <h3 class="text-lg font-bold mb-4">Reject Return</h3>
         <textarea v-model="managerNotes" class="w-full border rounded p-2 mb-4" rows="3" placeholder="Manager Notes..."></textarea>
         <div class="flex justify-end space-x-2">
           <button @click="showModal = false" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
@@ -97,7 +97,11 @@ const loadRequests = async () => {
     const res = currentTab.value === 'pending' 
       ? await getPendingReturnRequests() 
       : await getReturnHistory()
-    requests.value = res.data.data || []
+    requests.value = [...(res.data.data || [])].sort((left, right) => {
+      const leftDate = new Date(left.createdAt || left.resolvedAt || 0).getTime()
+      const rightDate = new Date(right.createdAt || right.resolvedAt || 0).getTime()
+      return rightDate - leftDate
+    })
   } catch (error) {
     console.error(error)
   } finally {
@@ -109,12 +113,12 @@ const loadRequests = async () => {
 watch(currentTab, loadRequests)
 
 const approve = async (id) => {
-  if (!confirm('Approve refund and restore stock?')) return
+  if (!confirm('Approve return and restore stock?')) return
   try {
     await approveReturnRequest(id)
     loadRequests()
   } catch (error) {
-    alert('Failed to approve refund.')
+    alert('Failed to approve return.')
   }
 }
 
@@ -130,7 +134,7 @@ const confirmReject = async () => {
     showModal.value = false
     loadRequests()
   } catch (error) {
-    alert('Failed to reject refund.')
+    alert('Failed to reject return.')
   }
 }
 
